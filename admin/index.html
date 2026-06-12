@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APEX Library — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+/* ─── Reset & Root ─────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070b14;--surface:#0d1117;--card:#161b22;--card2:#1c2333;
+  --border:#21262d;--border2:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--muted2:#6e7681;
+  --accent:#d4a843;--accent2:#e8bf5a;--accent-dim:rgba(212,168,67,.15);
+  --green:#3fb950;--red:#f85149;--orange:#d29922;--blue:#79c0ff;
+  --sidebar:200px;--hdr:56px;
+  --radius:8px;--radius-sm:5px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px}
+/* ─── Layout ─────────────────────────────────────────────────────────────── */
+.layout{display:flex;height:100vh}
+.sidebar{width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+/* ─── Sidebar ─────────────────────────────────────────────────────────────── */
+.logo{padding:18px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:var(--accent);border-radius:8px;display:grid;place-items:center;flex-shrink:0}
+.logo-icon i{font-size:18px;color:#000}
+.logo-text{line-height:1.2}
+.logo-text strong{font-size:13px;font-weight:600;color:var(--text);display:block}
+.logo-text span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.nav{flex:1;padding:10px 0;overflow-y:auto}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--muted);text-decoration:none;border-radius:var(--radius-sm);margin:1px 8px;font-size:13px;font-weight:500;transition:all .15s}
+.nav a:hover{background:var(--card);color:var(--text)}
+.nav a.active{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(212,168,67,.3)}
+.nav a i{font-size:15px;width:18px;text-align:center}
+.nav-section{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);padding:14px 16px 4px;font-weight:600}
+.sidebar-foot{padding:12px 8px;border-top:1px solid var(--border)}
+.sidebar-foot a{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);color:var(--muted);font-size:12px;text-decoration:none;transition:all .15s}
+.sidebar-foot a:hover{background:var(--card);color:var(--text)}
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.hdr{height:var(--hdr);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:600;color:var(--text)}
+.hdr-sub{font-size:12px;color:var(--muted);margin-top:1px}
+.hdr-actions{display:flex;gap:8px;align-items:center}
+/* ─── Content ─────────────────────────────────────────────────────────────── */
+.content{flex:1;overflow-y:auto;padding:20px 24px}
+.view{display:none}.view.active{display:block}
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;line-height:1;text-decoration:none;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}.btn-primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn-secondary{background:transparent;color:var(--muted);border-color:var(--border2)}.btn-secondary:hover{background:var(--card);color:var(--text)}
+.btn-danger{background:rgba(248,81,73,.15);color:var(--red);border-color:rgba(248,81,73,.3)}.btn-danger:hover{background:rgba(248,81,73,.25)}
+.btn-success{background:rgba(63,185,80,.15);color:var(--green);border-color:rgba(63,185,80,.3)}.btn-success:hover{background:rgba(63,185,80,.25)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+/* ─── Stats Cards ─────────────────────────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.blue::before{background:var(--blue)}
+.stat-card.green::before{background:var(--green)}
+.stat-card.orange::before{background:var(--orange)}
+.stat-card.red::before{background:var(--red)}
+.stat-card.accent::before{background:var(--accent)}
+.stat-card.purple::before{background:#bc8cff}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:700;color:var(--text);line-height:1}
+.stat-icon{position:absolute;right:14px;top:14px;font-size:20px;opacity:.2}
+/* ─── Section Header ─────────────────────────────────────────────────────── */
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.section-hdr h2{font-size:14px;font-weight:600;color:var(--text)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* ─── Search / Filter bar ─────────────────────────────────────────────────── */
+.search-bar{position:relative;display:inline-flex;align-items:center}
+.search-bar i{position:absolute;left:10px;color:var(--muted);font-size:14px;pointer-events:none}
+.search-bar input{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:7px 10px 7px 32px;font-size:13px;width:220px;outline:none;transition:border .15s}
+.search-bar input:focus{border-color:var(--accent)}
+.search-bar input::placeholder{color:var(--muted2)}
+select.filter{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:7px 10px;font-size:13px;outline:none;cursor:pointer}
+select.filter:focus{border-color:var(--accent)}
+/* ─── Table ─────────────────────────────────────────────────────────────── */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{background:var(--card2);padding:10px 14px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--card2)}
+.cover-thumb{width:32px;height:44px;object-fit:cover;border-radius:3px;background:var(--border)}
+.cover-placeholder{width:32px;height:44px;background:var(--border2);border-radius:3px;display:grid;place-items:center;color:var(--muted2);font-size:14px}
+.item-title{font-weight:500;color:var(--text)}
+.item-sub{font-size:11px;color:var(--muted);margin-top:2px}
+/* ─── Badges ─────────────────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge-green{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.badge-red{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.2)}
+.badge-orange{background:rgba(210,153,34,.15);color:var(--orange);border:1px solid rgba(210,153,34,.2)}
+.badge-blue{background:rgba(121,192,255,.15);color:var(--blue);border:1px solid rgba(121,192,255,.2)}
+.badge-muted{background:rgba(139,148,158,.12);color:var(--muted);border:1px solid var(--border)}
+.type-book{background:rgba(212,168,67,.12);color:var(--accent);border:1px solid rgba(212,168,67,.2)}
+.type-magazine{background:rgba(188,140,255,.12);color:#bc8cff;border:1px solid rgba(188,140,255,.2)}
+.type-video{background:rgba(121,192,255,.12);color:var(--blue);border:1px solid rgba(121,192,255,.2)}
+.type-game{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+/* ─── Empty state ─────────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty i{font-size:40px;display:block;margin-bottom:12px;opacity:.4}
+.empty p{font-size:13px}
+/* ─── Modal ─────────────────────────────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;display:none;place-items:center}
+.overlay.open{display:grid}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);width:min(680px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-hdr h3{font-size:15px;font-weight:600}
+.modal-body{flex:1;overflow-y:auto;padding:20px}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+.close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px;line-height:1;transition:color .15s}
+.close-btn:hover{color:var(--text)}
+/* ─── Form ─────────────────────────────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid.cols-1{grid-template-columns:1fr}
+.form-col-2{grid-column:span 2}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select,.field textarea{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:8px 10px;font-size:13px;outline:none;transition:border .15s;font-family:'Inter',sans-serif;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field input::placeholder,.field textarea::placeholder{color:var(--muted2)}
+.field textarea{resize:vertical;min-height:70px}
+.isbn-row{display:flex;gap:6px;align-items:flex-end}
+.isbn-row input{flex:1}
+.field-hint{font-size:11px;color:var(--muted2);margin-top:-3px}
+/* ─── Alert ─────────────────────────────────────────────────────────────── */
+.alert{padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;display:none;align-items:center;gap:8px}
+.alert.show{display:flex}
+.alert-error{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.2);color:var(--red)}
+.alert-success{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.2);color:var(--green)}
+/* ─── Toast ─────────────────────────────────────────────────────────────── */
+#toast-area{position:fixed;top:16px;right:16px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);animation:slideIn .2s ease;max-width:320px}
+.toast.success{border-color:rgba(63,185,80,.3)}.toast.success i{color:var(--green)}
+.toast.error{border-color:rgba(248,81,73,.3)}.toast.error i{color:var(--red)}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+/* ─── Loading ─────────────────────────────────────────────────────────────── */
+.spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-row td{text-align:center;padding:24px;color:var(--muted)}
+/* ─── Recent activity ─────────────────────────────────────────────────────── */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr}}
+.card-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-box-hdr{padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.mini-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border)}
+.mini-row:last-child{border-bottom:none}
+.mini-row-main{flex:1;min-width:0}
+.mini-row-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-row-sub{font-size:11px;color:var(--muted);margin-top:2px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ─── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><i class="bi bi-book-half"></i></div>
+      <div class="logo-text"><strong>APEX Library</strong><span>Admin Panel</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Main</div>
+      <a href="#" data-view="dashboard" class="active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+      <a href="#" data-view="catalog"><i class="bi bi-collection-fill"></i> Catalog</a>
+      <div class="nav-section">Checkouts</div>
+      <a href="#" data-view="loans"><i class="bi bi-arrow-right-circle-fill"></i> Active Loans</a>
+      <a href="#" data-view="overdue"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</a>
+      <a href="#" data-view="history"><i class="bi bi-clock-history"></i> History</a>
+    </nav>
+    <div class="sidebar-foot">
+      <a href="http://localhost:3002" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Open Patron Portal</a>
+    </div>
+  </aside>
+
+  <!-- ─── Main Area ─────────────────────────────────────────────────────── -->
+  <div class="main">
+    <header class="hdr">
+      <div><div class="hdr-title" id="viewTitle">Dashboard</div><div class="hdr-sub" id="viewSub"></div></div>
+      <div class="hdr-actions" id="hdrActions"></div>
+    </header>
+    <div class="content">
+
+      <!-- Dashboard -->
+      <section class="view active" id="view-dashboard">
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="dash-grid">
+          <div class="card-box">
+            <div class="card-box-hdr"><i class="bi bi-arrow-right-circle me-1"></i> Recent Checkouts</div>
+            <div id="recentCheckouts"><div class="empty"><i class="bi bi-inbox"></i><p>No recent activity</p></div></div>
+          </div>
+          <div class="card-box">
+            <div class="card-box-hdr"><i class="bi bi-exclamation-triangle me-1"></i> Overdue Items</div>
+            <div id="recentOverdue"><div class="empty"><i class="bi bi-check-circle"></i><p>No overdue items</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Catalog -->
+      <section class="view" id="view-catalog">
+        <div class="section-hdr">
+          <div class="toolbar">
+            <div class="search-bar"><i class="bi bi-search"></i><input type="text" id="catSearch" placeholder="Search title, author, ISBN…" oninput="filterCatalog()"></div>
+            <select class="filter" id="catType" onchange="filterCatalog()">
+              <option value="">All Types</option>
+              <option value="book">Books</option>
+              <option value="magazine">Magazines</option>
+              <option value="video">Videos</option>
+              <option value="game">Games</option>
+            </select>
+            <select class="filter" id="catStatus" onchange="filterCatalog()">
+              <option value="">All Status</option>
+              <option value="Available">Available</option>
+              <option value="Checked Out">Checked Out</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" id="btnEnrichMeta" onclick="openEnrichModal()"><i class="bi bi-stars"></i> Enrich Metadata</button>
+          <button class="btn btn-primary" onclick="openItemModal()"><i class="bi bi-plus-lg"></i> Add Item</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:44px"></th>
+              <th>Title / Author</th>
+              <th>Type</th>
+              <th>ISBN / Barcode</th>
+              <th>Condition</th>
+              <th>Status</th>
+              <th>Added</th>
+              <th style="width:100px"></th>
+            </tr></thead>
+            <tbody id="catalogTbody"><tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Active Loans -->
+      <section class="view" id="view-loans">
+        <div class="section-hdr">
+          <div class="toolbar">
+            <div class="search-bar"><i class="bi bi-search"></i><input type="text" id="loansSearch" placeholder="Search member or title…" oninput="filterLoans()"></div>
+          </div>
+          <button class="btn btn-secondary" onclick="loadLoans()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Item</th>
+              <th>Member</th>
+              <th>Member ID</th>
+              <th>Checked Out</th>
+              <th>Due Date</th>
+              <th>Status</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="loansTbody"><tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Overdue -->
+      <section class="view" id="view-overdue">
+        <div class="section-hdr"><h2>Overdue Items</h2>
+          <button class="btn btn-secondary" onclick="loadOverdue()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Member</th><th>Due Date</th><th>Days Overdue</th><th></th></tr></thead>
+            <tbody id="overdueTbody"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- History -->
+      <section class="view" id="view-history">
+        <div class="section-hdr"><h2>Checkout History</h2>
+          <button class="btn btn-secondary" onclick="loadHistory()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Member</th><th>Checked Out</th><th>Due</th><th>Returned</th></tr></thead>
+            <tbody id="histTbody"><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ─── Toast ─────────────────────────────────────────────────────────────── -->
+<div id="toast-area"></div>
+
+<!-- ─── Item Modal ─────────────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayItem">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3 id="modalItemTitle">Add Item</h3>
+      <button class="close-btn" onclick="closeModal('overlayItem')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-error" id="itemAlert"><i class="bi bi-exclamation-circle"></i><span id="itemAlertMsg"></span></div>
+      <div class="alert alert-success" id="itemSuccess"><i class="bi bi-check-circle"></i><span id="itemSuccessMsg"></span></div>
+
+      <!-- ISBN Lookup (books only) -->
+      <div id="isbnLookupSection" class="form-grid cols-1" style="margin-bottom:16px">
+        <div class="field">
+          <label>ISBN Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — auto-fills fields from Open Library &amp; Google Books)</span></label>
+          <div class="isbn-row">
+            <input type="text" id="isbnInput" placeholder="Enter ISBN-10 or ISBN-13…" onkeydown="if(event.key==='Enter')lookupISBN()">
+            <button class="btn btn-secondary" onclick="lookupISBN()" id="isbnBtn"><i class="bi bi-search"></i> Lookup</button>
+          </div>
+          <div class="field-hint">Or scan a barcode — scanner will auto-detect and search.</div>
+        </div>
+      </div>
+
+      <!-- BGG Lookup (games only) -->
+      <div id="bggLookupSection" class="form-grid cols-1" style="margin-bottom:16px;display:none">
+        <div class="field">
+          <label>BoardGameGeek Search <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — auto-fills title, cover &amp; description)</span></label>
+          <div class="isbn-row">
+            <input type="text" id="bggSearchInput" placeholder="Search by game name or enter BGG ID…" onkeydown="if(event.key==='Enter')searchBGG()">
+            <button class="btn btn-secondary" onclick="searchBGG()" id="bggBtn"><i class="bi bi-search"></i> Search BGG</button>
+          </div>
+          <div id="bggResults" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field form-col-2">
+          <label>Title *</label>
+          <input type="text" id="fTitle" placeholder="Item title">
+        </div>
+        <div class="field">
+          <label>Type *</label>
+          <select id="fType" onchange="onTypeChange()">
+            <option value="book">Book</option>
+            <option value="magazine">Magazine</option>
+            <option value="video">Video / DVD / Blu-ray</option>
+            <option value="game">Board Game</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Condition</label>
+          <select id="fCondition">
+            <option value="New">New</option>
+            <option value="Good" selected>Good</option>
+            <option value="Fair">Fair</option>
+            <option value="Poor">Poor</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Author / Director / Creator</label>
+          <input type="text" id="fAuthor" placeholder="Author name(s)">
+        </div>
+        <div class="field">
+          <label>Publisher / Studio</label>
+          <input type="text" id="fPublisher">
+        </div>
+        <div class="field">
+          <label>Year</label>
+          <input type="text" id="fYear" placeholder="2024">
+        </div>
+        <div class="field">
+          <label>ISBN</label>
+          <input type="text" id="fISBN" placeholder="ISBN-10 or ISBN-13">
+        </div>
+        <div class="field">
+          <label>Barcode</label>
+          <input type="text" id="fBarcode" placeholder="Barcode (if any)">
+        </div>
+        <div class="field">
+          <label>Shelf Location</label>
+          <input type="text" id="fLocation" placeholder="e.g. A-3, Fiction, etc.">
+        </div>
+        <div class="field">
+          <label>Cover Image URL</label>
+          <input type="text" id="fCoverUrl" placeholder="https://…">
+        </div>
+        <div class="field form-col-2">
+          <label>Description</label>
+          <textarea id="fDescription" placeholder="Brief description or notes…"></textarea>
+        </div>
+        <div class="field form-col-2">
+          <label>Admin Notes</label>
+          <textarea id="fNotes" rows="2" placeholder="Internal notes only…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger btn-sm" id="btnDelete" onclick="deleteItem()" style="margin-right:auto;display:none"><i class="bi bi-trash"></i> Delete</button>
+      <button class="btn btn-secondary" onclick="closeModal('overlayItem')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveItem()" id="btnSave"><i class="bi bi-check-lg"></i> Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Return Confirm Modal ─────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayReturn">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hdr">
+      <h3>Confirm Return</h3>
+      <button class="close-btn" onclick="closeModal('overlayReturn')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Return this item to the library?</p>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px">
+        <div style="font-weight:500;font-size:14px" id="retTitle"></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Checked out by: <strong id="retMember"></strong></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('overlayReturn')">Cancel</button>
+      <button class="btn btn-success" onclick="confirmReturn()"><i class="bi bi-check-lg"></i> Confirm Return</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Enrich Metadata Modal ───────────────────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayEnrich">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-stars" style="color:var(--accent)"></i> Enrich Item Metadata</h3>
+      <button class="close-btn" onclick="closeModal('overlayEnrich')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Ready view -->
+      <div id="enrichReadyView">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Automatically fetches missing <strong style="color:var(--text)">cover images, descriptions, authors, publishers, and years</strong> from <a href="https://openlibrary.org" target="_blank" style="color:var(--accent)">Open Library</a> for items that have an ISBN.</p>
+        <div id="enrichSummaryCards" style="margin-bottom:14px"></div>
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;gap:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text)">
+            <input type="checkbox" id="enrichForce" style="width:14px;height:14px;accent-color:var(--accent)">
+            <span>Force update <span style="color:var(--muted)">— overwrite existing descriptions &amp; covers</span></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Progress view -->
+      <div id="enrichProgressView" style="display:none">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;color:var(--muted)">
+          <span>Processing items…</span>
+          <span id="enrichProgressLabel">0 / 0</span>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:3px;margin-bottom:16px;overflow:hidden">
+          <div id="enrichProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .35s"></div>
+        </div>
+        <div id="enrichLog" style="max-height:280px;overflow-y:auto;font-size:12px;font-family:monospace;line-height:1.5;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px"></div>
+      </div>
+
+      <!-- Done view -->
+      <div id="enrichDoneView" style="display:none;text-align:center;padding:16px 0">
+        <i class="bi bi-check-circle" style="font-size:40px;color:var(--green);display:block;margin-bottom:12px"></i>
+        <div id="enrichDoneSummary" style="font-size:13px;color:var(--muted)"></div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('overlayEnrich')">Close</button>
+      <button class="btn btn-primary" id="btnStartEnrich" onclick="startEnrich()"><i class="bi bi-play-fill"></i> Start Enrichment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';   // relative — same origin
+let allItems = [];
+let allLoans = [];
+let pendingReturnId = null;
+let editingItemId   = null;
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+const viewMeta = {
+  dashboard: { title:'Dashboard', sub:'Overview & recent activity' },
+  catalog:   { title:'Catalog',   sub:'Manage library inventory' },
+  loans:     { title:'Active Loans', sub:'Currently checked-out items' },
+  overdue:   { title:'Overdue', sub:'Items past their due date' },
+  history:   { title:'Checkout History', sub:'Complete borrowing log' },
+};
+document.querySelectorAll('.nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    switchView(a.dataset.view);
+  });
+});
+function switchView(name) {
+  document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
+  const m = viewMeta[name] || {};
+  document.getElementById('viewTitle').textContent = m.title || name;
+  document.getElementById('viewSub').textContent   = m.sub || '';
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'catalog')   loadCatalog();
+  if (name === 'loans')     loadLoans();
+  if (name === 'overdue')   loadOverdue();
+  if (name === 'history')   loadHistory();
+}
+
+// ─── API Helpers ───────────────────────────────────────────────────────────────
+async function apiFetch(path, opts={}) {
+  const r = await fetch(API + path, { headers:{'Content-Type':'application/json'}, ...opts });
+  return r.json();
+}
+
+// ─── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const { stats } = await apiFetch('/api/stats');
+  const sg = document.getElementById('statsGrid');
+  sg.innerHTML = `
+    ${statCard('Total Items', stats.total, 'bi-collection', 'blue')}
+    ${statCard('Available',   stats.available, 'bi-check-circle', 'green')}
+    ${statCard('Checked Out', stats.checked_out, 'bi-arrow-right-circle', 'orange')}
+    ${statCard('Overdue',     stats.overdue, 'bi-exclamation-triangle', 'red')}
+    ${statCard('Books',       stats.books, 'bi-book', 'accent')}
+    ${statCard('Magazines',   stats.magazines, 'bi-newspaper', 'purple')}
+    ${statCard('Videos',      stats.videos, 'bi-camera-video', 'blue')}
+  `;
+  // Recent checkouts
+  const { checkouts } = await apiFetch('/api/checkouts?type=active');
+  const rc = document.getElementById('recentCheckouts');
+  rc.innerHTML = checkouts.slice(0,6).map(c => `
+    <div class="mini-row">
+      <div class="mini-row-main">
+        <div class="mini-row-title">${esc(c.title)}</div>
+        <div class="mini-row-sub">${esc(c.member_name)} · Due ${fmtDate(c.due_date)}</div>
+      </div>
+      ${isOverdue(c.due_date) ? `<span class="badge badge-red">Overdue</span>` : `<span class="badge badge-blue">Active</span>`}
+    </div>
+  `).join('') || '<div class="empty"><i class="bi bi-inbox"></i><p>No active loans</p></div>';
+
+  // Overdue
+  const { checkouts: od } = await apiFetch('/api/checkouts?type=overdue');
+  const ro = document.getElementById('recentOverdue');
+  ro.innerHTML = od.slice(0,6).map(c => `
+    <div class="mini-row">
+      <div class="mini-row-main">
+        <div class="mini-row-title">${esc(c.title)}</div>
+        <div class="mini-row-sub">${esc(c.member_name)} · Due ${fmtDate(c.due_date)}</div>
+      </div>
+      <span class="badge badge-red">${daysDue(c.due_date)}d overdue</span>
+    </div>
+  `).join('') || '<div class="empty"><i class="bi bi-check-circle"></i><p>No overdue items!</p></div>';
+}
+function statCard(label, val, icon, cls) {
+  return `<div class="stat-card ${cls}">
+    <div class="stat-label">${label}</div>
+    <div class="stat-value">${val ?? 0}</div>
+    <i class="bi ${icon} stat-icon"></i>
+  </div>`;
+}
+
+// ─── Catalog ──────────────────────────────────────────────────────────────────
+async function loadCatalog() {
+  const { items } = await apiFetch('/api/items');
+  allItems = items;
+  renderCatalog(items);
+}
+function filterCatalog() {
+  const q = document.getElementById('catSearch').value.toLowerCase();
+  const t = document.getElementById('catType').value;
+  const s = document.getElementById('catStatus').value;
+  renderCatalog(allItems.filter(i => {
+    const match = !q || [i.title, i.author, i.isbn, i.barcode, i.publisher].some(f => (f||'').toLowerCase().includes(q));
+    return match && (!t || i.type===t) && (!s || i.status===s);
+  }));
+}
+function renderCatalog(items) {
+  const tb = document.getElementById('catalogTbody');
+  if (!items.length) { tb.innerHTML = `<tr><td colspan="8"><div class="empty"><i class="bi bi-collection"></i><p>No items found</p></div></td></tr>`; return; }
+  tb.innerHTML = items.map(i => `
+    <tr>
+      <td>${i.cover_url ? `<img class="cover-thumb" src="${esc(i.cover_url)}" onerror="this.parentNode.innerHTML='<div class=cover-placeholder><i class=bi bi-book></i></div>'">` : i.isbn ? `<div class="cover-placeholder" title="Has ISBN — click ✦ to fetch cover"><i class="bi bi-stars" style="color:var(--orange);opacity:.85"></i></div>` : `<div class="cover-placeholder"><i class="bi ${typeIcon(i.type)}"></i></div>`}</td>
+      <td><div class="item-title">${esc(i.title)}</div><div class="item-sub">${esc(i.author||'—')}</div></td>
+      <td><span class="badge type-${i.type}">${capitalize(i.type)}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${esc(i.isbn || i.barcode || '—')}</td>
+      <td>${condBadge(i.condition)}</td>
+      <td>${statusBadge(i.status)}</td>
+      <td style="font-size:11px;color:var(--muted)">${fmtDate(i.added_date)}</td>
+      <td><div style="display:flex;gap:4px">
+        ${i.isbn ? `<button class="btn btn-secondary btn-xs" data-enrich-id="${i.id}" title="Fetch cover &amp; metadata from Open Library" onclick="enrichItem(${i.id})"><i class="bi bi-stars"></i></button>` : ''}
+        <button class="btn btn-secondary btn-xs" onclick="openItemModal(${i.id})"><i class="bi bi-pencil"></i></button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+// ─── Active Loans ─────────────────────────────────────────────────────────────
+async function loadLoans() {
+  const { checkouts } = await apiFetch('/api/checkouts?type=active');
+  allLoans = checkouts;
+  renderLoans(checkouts);
+}
+function filterLoans() {
+  const q = document.getElementById('loansSearch').value.toLowerCase();
+  renderLoans(allLoans.filter(c => [c.member_name,c.title,c.member_id].some(f=>(f||'').toLowerCase().includes(q))));
+}
+function renderLoans(loans) {
+  const tb = document.getElementById('loansTbody');
+  if (!loans.length) { tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="bi bi-inbox"></i><p>No active loans</p></div></td></tr>`; return; }
+  tb.innerHTML = loans.map(c => `
+    <tr>
+      <td><div class="item-title">${esc(c.title)}</div><div class="item-sub">${capitalize(c.type)}</div></td>
+      <td>${esc(c.member_name)}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(c.member_id||'—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(c.checkout_date)}</td>
+      <td>${isOverdue(c.due_date) ? `<span style="color:var(--red)">${fmtDate(c.due_date)}</span>` : fmtDate(c.due_date)}</td>
+      <td>${isOverdue(c.due_date) ? `<span class="badge badge-red">Overdue ${daysDue(c.due_date)}d</span>` : `<span class="badge badge-blue">Active</span>`}</td>
+      <td><button class="btn btn-success btn-xs" onclick="openReturn(${c.id},'${esc(c.title)}','${esc(c.member_name)}')"><i class="bi bi-arrow-return-left"></i> Return</button></td>
+    </tr>
+  `).join('');
+}
+
+// ─── Overdue ─────────────────────────────────────────────────────────────────
+async function loadOverdue() {
+  const { checkouts } = await apiFetch('/api/checkouts?type=overdue');
+  const tb = document.getElementById('overdueTbody');
+  if (!checkouts.length) { tb.innerHTML = `<tr><td colspan="5"><div class="empty"><i class="bi bi-check-circle" style="color:var(--green)"></i><p>No overdue items!</p></div></td></tr>`; return; }
+  tb.innerHTML = checkouts.map(c => `
+    <tr>
+      <td><div class="item-title">${esc(c.title)}</div><div class="item-sub">${capitalize(c.type)}</div></td>
+      <td>${esc(c.member_name)}</td>
+      <td style="color:var(--red)">${fmtDate(c.due_date)}</td>
+      <td><span class="badge badge-red">${daysDue(c.due_date)} days</span></td>
+      <td><button class="btn btn-success btn-xs" onclick="openReturn(${c.id},'${esc(c.title)}','${esc(c.member_name)}')"><i class="bi bi-arrow-return-left"></i> Return</button></td>
+    </tr>
+  `).join('');
+}
+
+// ─── History ─────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const { checkouts } = await apiFetch('/api/checkouts');
+  const tb = document.getElementById('histTbody');
+  if (!checkouts.length) { tb.innerHTML = `<tr><td colspan="5"><div class="empty"><i class="bi bi-clock-history"></i><p>No checkout history</p></div></td></tr>`; return; }
+  tb.innerHTML = checkouts.map(c => `
+    <tr>
+      <td><div class="item-title">${esc(c.title)}</div><div class="item-sub">${capitalize(c.type)}</div></td>
+      <td>${esc(c.member_name)}</td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(c.checkout_date)}</td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(c.due_date)}</td>
+      <td>${c.return_date ? `<span class="badge badge-green">${fmtDate(c.return_date)}</span>` : `<span class="badge badge-orange">Out</span>`}</td>
+    </tr>
+  `).join('');
+}
+
+// ─── Item Modal ───────────────────────────────────────────────────────────────
+function openItemModal(id) {
+  editingItemId = id || null;
+  clearForm();
+  document.getElementById('modalItemTitle').textContent = id ? 'Edit Item' : 'Add Item';
+  document.getElementById('btnDelete').style.display = id ? '' : 'none';
+  if (id) {
+    apiFetch(`/api/items/${id}`).then(({ item }) => {
+      if (!item) return;
+      document.getElementById('fTitle').value       = item.title       || '';
+      document.getElementById('fType').value        = item.type        || 'book';
+      document.getElementById('fAuthor').value      = item.author      || '';
+      document.getElementById('fPublisher').value   = item.publisher   || '';
+      document.getElementById('fYear').value        = item.year        || '';
+      document.getElementById('fDescription').value = item.description || '';
+      document.getElementById('fISBN').value        = item.isbn        || '';
+      document.getElementById('fBarcode').value     = item.barcode     || '';
+      document.getElementById('fCondition').value   = item.condition   || 'Good';
+      document.getElementById('fCoverUrl').value    = item.cover_url   || '';
+      document.getElementById('fLocation').value    = item.location    || '';
+      document.getElementById('fNotes').value       = item.notes       || '';
+    });
+  }
+  document.getElementById('overlayItem').classList.add('open');
+}
+function clearForm() {
+  ['fTitle','fAuthor','fPublisher','fYear','fDescription','fISBN','fBarcode','fCoverUrl','fLocation','fNotes','isbnInput'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('fType').value = 'book';
+  document.getElementById('fCondition').value = 'Good';
+  hideAlerts();
+}
+function hideAlerts() {
+  document.getElementById('itemAlert').classList.remove('show');
+  document.getElementById('itemSuccess').classList.remove('show');
+}
+function showAlert(msg, success=false) {
+  const el = document.getElementById(success ? 'itemSuccess' : 'itemAlert');
+  const span = document.getElementById(success ? 'itemSuccessMsg' : 'itemAlertMsg');
+  span.textContent = msg;
+  el.classList.add('show');
+  if (!success) setTimeout(() => el.classList.remove('show'), 4000);
+}
+async function saveItem() {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { showAlert('Title is required'); return; }
+  const body = {
+    title, type: document.getElementById('fType').value,
+    author: document.getElementById('fAuthor').value.trim(),
+    publisher: document.getElementById('fPublisher').value.trim(),
+    year: document.getElementById('fYear').value.trim(),
+    description: document.getElementById('fDescription').value.trim(),
+    isbn: document.getElementById('fISBN').value.trim(),
+    barcode: document.getElementById('fBarcode').value.trim(),
+    condition: document.getElementById('fCondition').value,
+    cover_url: document.getElementById('fCoverUrl').value.trim(),
+    location: document.getElementById('fLocation').value.trim(),
+    notes: document.getElementById('fNotes').value.trim(),
+  };
+  const btn = document.getElementById('btnSave');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Saving…';
+  const res = await apiFetch(editingItemId ? `/api/items/${editingItemId}` : '/api/items', {
+    method: editingItemId ? 'PUT' : 'POST', body: JSON.stringify(body)
+  });
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg"></i> Save Item';
+  if (res.success) {
+    toast(editingItemId ? 'Item updated.' : 'Item added!', true);
+    closeModal('overlayItem');
+    if (document.getElementById('view-catalog').classList.contains('active')) loadCatalog();
+  } else { showAlert(res.error || 'Save failed'); }
+}
+async function deleteItem() {
+  if (!editingItemId) return;
+  if (!confirm('Delete this item? This cannot be undone.')) return;
+  const res = await apiFetch(`/api/items/${editingItemId}`, { method:'DELETE' });
+  if (res.success) {
+    toast('Item deleted.', true); closeModal('overlayItem'); loadCatalog();
+  } else { showAlert(res.error || 'Delete failed'); }
+}
+
+// ─── ISBN Lookup ───────────────────────────────────────────────────────────────
+async function lookupISBN() {
+  const isbn = document.getElementById('isbnInput').value.trim();
+  if (!isbn) { showAlert('Enter an ISBN to look up'); return; }
+  const btn = document.getElementById('isbnBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>';
+  hideAlerts();
+  const res = await apiFetch(`/api/isbn/${isbn.replace(/[- ]/g,'')}`);
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Lookup';
+  if (!res.success) { showAlert(res.error || 'ISBN not found'); return; }
+  const d = res.data;
+  if (d.title)       document.getElementById('fTitle').value = d.title;
+  if (d.author)      document.getElementById('fAuthor').value = d.author;
+  if (d.publisher)   document.getElementById('fPublisher').value = d.publisher;
+  if (d.year)        document.getElementById('fYear').value = d.year;
+  if (d.description) document.getElementById('fDescription').value = d.description;
+  if (d.cover_url)   document.getElementById('fCoverUrl').value = d.cover_url;
+  if (d.isbn)        document.getElementById('fISBN').value = d.isbn;
+  // Don't force type; keep whatever user selected
+  showAlert('Fields filled from Open Library & Google Books!', true);
+}
+
+// ─── Type-change handler (show/hide lookup sections) ──────────────────────────
+function onTypeChange() {
+  const t = document.getElementById('fType').value;
+  document.getElementById('isbnLookupSection').style.display = t === 'book' ? '' : 'none';
+  document.getElementById('bggLookupSection').style.display  = t === 'game' ? '' : 'none';
+  document.getElementById('bggResults').innerHTML = '';
+}
+
+// ─── BGG Search ───────────────────────────────────────────────────────────────
+async function searchBGG() {
+  const query = document.getElementById('bggSearchInput').value.trim();
+  if (!query) { showAlert('Enter a game name to search'); return; }
+  const btn = document.getElementById('bggBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>';
+  hideAlerts();
+  const resultsEl = document.getElementById('bggResults');
+  resultsEl.innerHTML = '';
+
+  // If it looks like a pure number treat it as a BGG ID
+  if (/^\d+$/.test(query)) {
+    await selectBGGGame(query);
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Search BGG';
+    return;
+  }
+
+  const res = await apiFetch(`/api/bgg/search?q=${encodeURIComponent(query)}`);
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Search BGG';
+
+  if (!res.success || !res.items.length) {
+    resultsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:6px 0">No results found on BoardGameGeek.</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = res.items.map(item => `
+    <div style="padding:7px 10px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;margin-bottom:4px;display:flex;align-items:center;gap:10px;transition:border-color .15s"
+         onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+         onclick="selectBGGGame('${esc(item.id)}')">
+      <i class="bi bi-puzzle" style="color:var(--green);font-size:15px;flex-shrink:0"></i>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.name)}</div>
+        ${item.year ? `<div style="font-size:11px;color:var(--muted)">${esc(item.year)}</div>` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--muted2);flex-shrink:0">BGG #${esc(item.id)}</div>
+    </div>
+  `).join('');
+}
+
+async function selectBGGGame(id) {
+  const resultsEl = document.getElementById('bggResults');
+  resultsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:6px 0"><span class="spinner" style="width:12px;height:12px;border-width:2px;vertical-align:middle;margin-right:6px"></span>Fetching from BGG…</div>';
+  const res = await apiFetch(`/api/bgg/${id}`);
+  if (!res.success) {
+    resultsEl.innerHTML = `<div style="font-size:12px;color:var(--red);padding:4px 0">${esc(res.error)}</div>`;
+    return;
+  }
+  const d = res.data;
+  if (d.title)       document.getElementById('fTitle').value       = d.title;
+  if (d.description) document.getElementById('fDescription').value  = d.description;
+  if (d.cover_url)   document.getElementById('fCoverUrl').value     = d.cover_url;
+  if (d.year)        document.getElementById('fYear').value         = d.year;
+  if (d.publisher)   document.getElementById('fPublisher').value    = d.publisher;
+  if (d.author)      document.getElementById('fAuthor').value       = d.author;
+  if (d.bgg_id)      document.getElementById('fBarcode').value      = `BGG:${d.bgg_id}`;
+  document.getElementById('fType').value = 'game';
+  resultsEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);border-radius:var(--radius-sm);font-size:12px">
+      <i class="bi bi-check-circle" style="color:var(--green)"></i>
+      <div><strong style="color:var(--text)">${esc(d.title)}</strong> fetched from BoardGameGeek</div>
+    </div>
+  `;
+  showAlert('Fields filled from BoardGameGeek!', true);
+}
+
+// ─── Return Workflow ──────────────────────────────────────────────────────────
+function openReturn(id, title, member) {
+  pendingReturnId = id;
+  document.getElementById('retTitle').textContent  = title;
+  document.getElementById('retMember').textContent = member;
+  document.getElementById('overlayReturn').classList.add('open');
+}
+async function confirmReturn() {
+  if (!pendingReturnId) return;
+  const res = await apiFetch(`/api/checkouts/${pendingReturnId}/return`, { method:'POST' });
+  if (res.success) {
+    toast('Item returned successfully!', true);
+    closeModal('overlayReturn');
+    if (document.getElementById('view-loans').classList.contains('active'))   loadLoans();
+    if (document.getElementById('view-overdue').classList.contains('active')) loadOverdue();
+    if (document.getElementById('view-dashboard').classList.contains('active')) loadDashboard();
+  } else { toast(res.error || 'Return failed', false); }
+}
+
+// ─── Modals ─────────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) closeModal(ov.id); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(o => closeModal(o.id));
+});
+
+// ─── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, success=true) {
+  const t = document.createElement('div');
+  t.className = `toast ${success ? 'success' : 'error'}`;
+  t.innerHTML = `<i class="bi ${success ? 'bi-check-circle' : 'bi-exclamation-circle'}"></i><span>${esc(msg)}</span>`;
+  document.getElementById('toast-area').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function capitalize(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+function typeIcon(t) { return t==='magazine'?'bi-newspaper':t==='video'?'bi-camera-video':t==='game'?'bi-puzzle':'bi-book'; }
+function fmtDate(d) { if (!d) return '—'; const dt = new Date(d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function isOverdue(d) { return d && new Date(d) < new Date(); }
+function daysDue(d) { return Math.floor((new Date()-new Date(d))/(1000*60*60*24)); }
+function statusBadge(s) { return s==='Available'?`<span class="badge badge-green"><i class="bi bi-check-circle"></i>${s}</span>`:`<span class="badge badge-orange"><i class="bi bi-arrow-right-circle"></i>${s}</span>`; }
+function condBadge(c) {
+  const m = {New:'badge-green',Good:'badge-blue',Fair:'badge-muted',Poor:'badge-red'};
+  return `<span class="badge ${m[c]||'badge-muted'}">${esc(c)}</span>`;
+}
+
+// ─── Enrich Metadata ────────────────────────────────────────────────────────────────
+let enrichQueue = [];
+
+async function openEnrichModal() {
+  // Reset views
+  document.getElementById('enrichReadyView').style.display   = '';
+  document.getElementById('enrichProgressView').style.display = 'none';
+  document.getElementById('enrichDoneView').style.display     = 'none';
+  document.getElementById('btnStartEnrich').style.display     = '';
+  document.getElementById('btnStartEnrich').disabled          = false;
+  document.getElementById('btnStartEnrich').innerHTML         = '<i class="bi bi-play-fill"></i> Start Enrichment';
+  document.getElementById('enrichForce').checked              = false;
+
+  const res = await apiFetch('/api/items/enrichable');
+  if (!res.success) { toast('Could not load items', false); return; }
+  enrichQueue = res.enrichable;
+
+  const sc = document.getElementById('enrichSummaryCards');
+  sc.innerHTML = `
+    ${statCard('Need Enrichment', enrichQueue.length, 'bi-stars', 'orange')}
+    ${statCard('Already Complete', res.complete_count, 'bi-check-circle', 'green')}
+  `;
+  sc.querySelector('.stats-grid').style.gridTemplateColumns = 'repeat(2,1fr)';
+  sc.querySelector('.stats-grid').style.marginBottom = '0';
+
+  if (!enrichQueue.length) {
+    document.getElementById('btnStartEnrich').disabled = true;
+    document.getElementById('btnStartEnrich').textContent = 'All items complete!';
+  }
+
+  document.getElementById('overlayEnrich').classList.add('open');
+}
+
+async function startEnrich() {
+  if (!enrichQueue.length) return;
+  const force = document.getElementById('enrichForce').checked;
+
+  document.getElementById('enrichReadyView').style.display   = 'none';
+  document.getElementById('enrichProgressView').style.display = '';
+  document.getElementById('btnStartEnrich').style.display     = 'none';
+
+  const log   = document.getElementById('enrichLog');
+  const bar   = document.getElementById('enrichProgressBar');
+  const label = document.getElementById('enrichProgressLabel');
+  log.innerHTML = '';
+
+  let updated = 0, notFound = 0, skipped = 0, errors = 0;
+  const total = enrichQueue.length;
+
+  for (let idx = 0; idx < total; idx++) {
+    const item = enrichQueue[idx];
+    bar.style.width   = Math.round((idx / total) * 100) + '%';
+    label.textContent = `${idx} / ${total}`;
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;padding:2px 0;border-bottom:1px solid var(--border);color:var(--muted)';
+    row.innerHTML = `<span style="flex-shrink:0">⟳</span><span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(item.title)}</span><span style="flex-shrink:0;color:var(--muted2)">…</span>`;
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+
+    try {
+      const res = await apiFetch(`/api/items/${item.id}/enrich`, {
+        method: 'POST', body: JSON.stringify({ force })
+      });
+      if (res.success && res.changed.length > 0) {
+        updated++;
+        row.innerHTML = `<span style="color:var(--green);flex-shrink:0">✓</span><span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--text)">${esc(item.title)}</span><span style="flex-shrink:0;color:var(--green)">${res.changed.join(', ')}</span>`;
+      } else if (res.success) {
+        skipped++;
+        row.innerHTML = `<span style="flex-shrink:0;color:var(--muted2)">—</span><span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(item.title)}</span><span style="flex-shrink:0;color:var(--muted2)">complete</span>`;
+      } else {
+        notFound++;
+        row.innerHTML = `<span style="color:var(--orange);flex-shrink:0">?</span><span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(item.title)}</span><span style="flex-shrink:0;color:var(--orange)">${esc(res.error || 'not found')}</span>`;
+      }
+    } catch(e) {
+      errors++;
+      row.innerHTML = `<span style="color:var(--red);flex-shrink:0">✗</span><span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(item.title)}</span><span style="flex-shrink:0;color:var(--red)">error</span>`;
+    }
+
+    if (idx < total - 1) await new Promise(r => setTimeout(r, 420)); // rate-limit
+  }
+
+  bar.style.width   = '100%';
+  label.textContent = `${total} / ${total}`;
+
+  setTimeout(() => {
+    document.getElementById('enrichProgressView').style.display = 'none';
+    document.getElementById('enrichDoneView').style.display     = '';
+    document.getElementById('enrichDoneSummary').innerHTML = `
+      <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px">${updated} item${updated!==1?'s':''} enriched</div>
+      <div>${updated} updated &nbsp;·&nbsp; ${skipped} already complete &nbsp;·&nbsp; ${notFound} not found &nbsp;·&nbsp; ${errors} errors</div>
+    `;
+    if (updated > 0) loadCatalog();
+  }, 400);
+}
+
+async function enrichItem(id) {
+  const btn = document.querySelector(`[data-enrich-id="${id}"]`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:11px;height:11px;border-width:2px"></span>'; }
+
+  const res = await apiFetch(`/api/items/${id}/enrich`, { method: 'POST', body: JSON.stringify({ force: false }) });
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-stars"></i>'; }
+
+  if (res.success && res.changed.length > 0) {
+    toast(`Updated: ${res.changed.join(', ')}`, true);
+    loadCatalog();
+  } else if (res.success) {
+    toast('Already complete — nothing new from Open Library.', true);
+  } else {
+    toast(res.error || 'Enrichment failed', false);
+  }
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
+</html>

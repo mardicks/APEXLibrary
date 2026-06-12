@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APEX Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+/* ─── Reset & Root ──────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0b06;--surface:#19140d;--card:#221b12;--card2:#2c2316;
+  --border:#3a2e1e;--border2:#4a3c28;
+  --text:#f0e6d0;--muted:#9e8c74;--muted2:#6b5d49;
+  --accent:#c8963c;--accent2:#dba94f;--accent-dim:rgba(200,150,60,.15);
+  --green:#5aad70;--red:#c25454;--orange:#c88a3c;
+  --hdr-h:64px;--radius:10px;--radius-sm:6px;
+  --shadow:0 6px 32px rgba(0,0,0,.5);
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px}
+a{color:inherit;text-decoration:none}
+/* ─── Header ───────────────────────────────────────────────────────────────── */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;padding:0 24px;height:var(--hdr-h);display:flex;align-items:center;gap:20px}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:grid;place-items:center}
+.logo-icon i{font-size:18px;color:#000}
+.logo-text strong{font-family:'Playfair Display',serif;font-size:17px;color:var(--text);display:block;line-height:1.1}
+.logo-text span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+/* ─── Tab Nav ──────────────────────────────────────────────────────────────── */
+.tab-nav{display:flex;gap:2px;margin-left:auto}
+.tab-nav a{display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--radius-sm);color:var(--muted);font-size:13px;font-weight:500;transition:all .15s;cursor:pointer}
+.tab-nav a:hover{background:var(--card);color:var(--text)}
+.tab-nav a.active{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(200,150,60,.25)}
+.tab-nav a i{font-size:15px}
+/* ─── Hero Search ──────────────────────────────────────────────────────────── */
+.hero{background:linear-gradient(160deg,var(--surface) 0%,var(--card) 100%);border-bottom:1px solid var(--border);padding:28px 24px 22px;text-align:center}
+.hero h1{font-family:'Playfair Display',serif;font-size:26px;color:var(--text);margin-bottom:6px}
+.hero p{font-size:13px;color:var(--muted);margin-bottom:18px}
+.search-wrap{max-width:540px;margin:0 auto;position:relative}
+.search-wrap i.icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px}
+.search-wrap input{width:100%;padding:12px 50px 12px 42px;border-radius:var(--radius);background:var(--card2);border:1px solid var(--border2);color:var(--text);font-size:15px;outline:none;transition:border .2s,box-shadow .2s}
+.search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,150,60,.12)}
+.search-wrap input::placeholder{color:var(--muted2)}
+.search-wrap .clear-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;display:none}
+.filter-pills{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);color:var(--muted);background:var(--card);transition:all .15s}
+.pill:hover{border-color:var(--border2);color:var(--text)}
+.pill.active{background:var(--accent-dim);color:var(--accent);border-color:rgba(200,150,60,.4)}
+.pill i{font-size:13px}
+/* ─── Content ──────────────────────────────────────────────────────────────── */
+.content{max-width:1100px;margin:0 auto;padding:24px}
+.view{display:none}.view.active{display:block}
+/* ─── Catalog Grid ─────────────────────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
+@media(max-width:500px){.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
+.item-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .2s;display:flex;flex-direction:column}
+.item-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.card-cover{aspect-ratio:2/3;background:var(--card2);position:relative;overflow:hidden;flex-shrink:0}
+.card-cover img{width:100%;height:100%;object-fit:cover}
+.card-cover-placeholder{width:100%;height:100%;display:grid;place-items:center;flex-direction:column}
+.card-cover-placeholder i{font-size:40px;color:var(--muted2);display:block}
+.card-status-badge{position:absolute;top:8px;right:8px}
+.card-body{padding:10px 12px;flex:1;display:flex;flex-direction:column}
+.card-type{font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.card-title{font-size:13px;font-weight:600;line-height:1.3;color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card-author{font-size:11px;color:var(--muted);margin-top:4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.card-actions{margin-top:auto;padding-top:8px}
+/* ─── List view ─────────────────────────────────────────────────────────────── */
+.list-view .item-list-row{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.list-view .item-list-row:hover{border-color:var(--accent);background:var(--card2)}
+.list-cover{width:36px;height:50px;border-radius:4px;object-fit:cover;background:var(--card2);flex-shrink:0}
+.list-cover-ph{width:36px;height:50px;background:var(--card2);border-radius:4px;display:grid;place-items:center;color:var(--muted2);flex-shrink:0}
+.list-main{flex:1;min-width:0}
+.list-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-sub{font-size:12px;color:var(--muted);margin-top:2px}
+/* ─── Badges ─────────────────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge-available{background:rgba(90,173,112,.15);color:var(--green);border:1px solid rgba(90,173,112,.25)}
+.badge-out{background:rgba(194,84,84,.12);color:var(--red);border:1px solid rgba(194,84,84,.2)}
+.badge-book{background:rgba(200,150,60,.12);color:var(--accent);border:1px solid rgba(200,150,60,.2)}
+.badge-magazine{background:rgba(188,140,255,.12);color:#bc8cff;border:1px solid rgba(188,140,255,.2)}
+.badge-video{background:rgba(121,192,255,.12);color:#79c0ff;border:1px solid rgba(121,192,255,.2)}
+.badge-game{background:rgba(90,173,112,.12);color:#5aad70;border:1px solid rgba(90,173,112,.2)}
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;line-height:1;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}.btn-primary:hover{background:var(--accent2)}
+.btn-secondary{background:var(--card2);color:var(--muted);border-color:var(--border2)}.btn-secondary:hover{background:var(--card);color:var(--text)}
+.btn-success{background:rgba(90,173,112,.15);color:var(--green);border-color:rgba(90,173,112,.25)}.btn-success:hover{background:rgba(90,173,112,.3)}
+.btn-danger{background:rgba(194,84,84,.12);color:var(--red);border-color:rgba(194,84,84,.2)}.btn-danger:hover{background:rgba(194,84,84,.25)}
+.btn-block{width:100%;justify-content:center}
+.btn-lg{padding:12px 24px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+/* ─── Section title ─────────────────────────────────────────────────────────── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-hdr h2{font-size:15px;font-weight:600}
+.count-tag{font-size:12px;color:var(--muted);margin-left:8px}
+/* ─── Modal ─────────────────────────────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:500;display:none;place-items:center;padding:16px}
+.overlay.open{display:grid}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);width:min(580px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-hdr h3{font-size:16px;font-weight:600;font-family:'Playfair Display',serif}
+.modal-body{flex:1;overflow-y:auto;padding:20px}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+.close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;transition:color .15s}
+.close-btn:hover{color:var(--text)}
+/* ─── Item Detail Modal ─────────────────────────────────────────────────────── */
+.detail-layout{display:flex;gap:20px;margin-bottom:20px}
+.detail-cover{width:100px;height:140px;border-radius:var(--radius-sm);object-fit:cover;flex-shrink:0;background:var(--card2)}
+.detail-cover-ph{width:100px;height:140px;border-radius:var(--radius-sm);background:var(--card2);display:grid;place-items:center;color:var(--muted2);flex-shrink:0}
+.detail-cover-ph i{font-size:36px}
+.detail-info{flex:1;min-width:0}
+.detail-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;line-height:1.2;margin-bottom:6px}
+.detail-author{font-size:13px;color:var(--muted);margin-bottom:10px}
+.detail-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.meta-chip{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 10px;font-size:11px;color:var(--muted)}
+.meta-chip strong{color:var(--text)}
+.detail-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.history-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.history-item:last-child{border-bottom:none}
+/* ─── Form ─────────────────────────────────────────────────────────────── */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:10px 12px;font-size:13px;outline:none;transition:border .15s;font-family:'Inter',sans-serif;width:100%}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,150,60,.1)}
+.field input::placeholder{color:var(--muted2)}
+.field .hint{font-size:11px;color:var(--muted2)}
+/* ─── Alert ─────────────────────────────────────────────────────────────── */
+.alert{padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;display:none;align-items:center;gap:8px}
+.alert.show{display:flex}
+.alert-error{background:rgba(194,84,84,.1);border:1px solid rgba(194,84,84,.2);color:var(--red)}
+.alert-success{background:rgba(90,173,112,.1);border:1px solid rgba(90,173,112,.2);color:var(--green)}
+/* ─── My Loans ─────────────────────────────────────────────────────────────── */
+.loan-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.loan-card-main{flex:1;min-width:0}
+.loan-card-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loan-card-sub{font-size:12px;color:var(--muted);margin-top:3px}
+/* ─── Return panel ─────────────────────────────────────────────────────────── */
+.return-search-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;max-width:540px;margin:0 auto}
+/* ─── Toast ─────────────────────────────────────────────────────────────── */
+#toast-area{position:fixed;bottom:20px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);animation:slideUp .2s ease;max-width:300px}
+.toast.success i{color:var(--green)}.toast.error i{color:var(--red)}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+/* ─── Spinner ─────────────────────────────────────────────────────────────── */
+.spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ─── Empty state ─────────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty i{font-size:48px;display:block;margin-bottom:14px;opacity:.3}
+.empty p{font-size:14px;margin-bottom:4px}
+.empty small{font-size:12px;opacity:.7}
+</style>
+</head>
+<body>
+
+<!-- ─── Header ─────────────────────────────────────────────────────────────── -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-icon"><i class="bi bi-book-half"></i></div>
+    <div class="logo-text"><strong>APEX Library</strong><span>Member Portal</span></div>
+  </div>
+  <nav class="tab-nav">
+    <a data-view="browse" class="active"><i class="bi bi-grid-3x3-gap"></i> Browse</a>
+    <a data-view="return"><i class="bi bi-arrow-return-left"></i> Return</a>
+    <a data-view="myloans"><i class="bi bi-person-lines-fill"></i> My Loans</a>
+  </nav>
+</header>
+
+<!-- ─── Hero Search (browse only) ─────────────────────────────────────────── -->
+<div class="hero" id="heroSearch">
+  <h1>Find Something Great to Explore</h1>
+  <p>Browse books, magazines, videos, and board games available at APEX.</p>
+  <div class="search-wrap">
+    <i class="bi bi-search icon"></i>
+    <input type="text" id="searchInput" placeholder="Search by title, author, ISBN, or keyword…" oninput="onSearch()" autocomplete="off">
+    <button class="clear-btn" id="clearBtn" onclick="clearSearch()"><i class="bi bi-x"></i></button>
+  </div>
+  <div class="filter-pills">
+    <div class="pill active" data-filter="all" onclick="setPill(this,'all')"><i class="bi bi-grid"></i> All</div>
+    <div class="pill" data-filter="book" onclick="setPill(this,'book')"><i class="bi bi-book"></i> Books</div>
+    <div class="pill" data-filter="magazine" onclick="setPill(this,'magazine')"><i class="bi bi-newspaper"></i> Magazines</div>
+    <div class="pill" data-filter="video" onclick="setPill(this,'video')"><i class="bi bi-camera-video"></i> Videos</div>
+    <div class="pill" data-filter="game" onclick="setPill(this,'game')"><i class="bi bi-puzzle"></i> Games</div>
+    <div class="pill" data-filter="avail" onclick="setPill(this,'avail')"><i class="bi bi-check-circle"></i> Available Only</div>
+  </div>
+</div>
+
+<!-- ─── Main Content ────────────────────────────────────────────────────────── -->
+<div class="content">
+
+  <!-- Browse / Catalog -->
+  <div class="view active" id="view-browse">
+    <div class="sec-hdr">
+      <div><span style="font-size:13px;color:var(--muted)" id="resultCount"></span></div>
+    </div>
+    <div class="grid" id="catalogGrid"></div>
+    <div id="catalogEmpty" class="empty" style="display:none">
+      <i class="bi bi-search"></i><p>No items found</p><small>Try a different search or filter</small>
+    </div>
+    <div id="catalogLoading" style="text-align:center;padding:40px"><span class="spinner"></span></div>
+  </div>
+
+  <!-- Return -->
+  <div class="view" id="view-return">
+    <div style="max-width:540px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:24px">
+        <i class="bi bi-arrow-return-left" style="font-size:36px;color:var(--accent);display:block;margin-bottom:10px"></i>
+        <h2 style="font-family:'Playfair Display',serif;font-size:22px">Return an Item</h2>
+        <p style="font-size:13px;color:var(--muted);margin-top:6px">Scan the barcode or search by title to find the item to return.</p>
+      </div>
+      <div class="return-search-wrap">
+        <div class="field">
+          <label>Search by Title or Barcode</label>
+          <input type="text" id="returnSearch" placeholder="Title, barcode, or ISBN…" oninput="searchReturnItems()">
+        </div>
+        <div id="returnResults"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Loans -->
+  <div class="view" id="view-myloans">
+    <div style="max-width:540px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:24px">
+        <i class="bi bi-person-lines-fill" style="font-size:36px;color:var(--accent);display:block;margin-bottom:10px"></i>
+        <h2 style="font-family:'Playfair Display',serif;font-size:22px">My Loans</h2>
+        <p style="font-size:13px;color:var(--muted);margin-top:6px">Enter your name to see your currently borrowed items.</p>
+      </div>
+      <div class="return-search-wrap" style="margin-bottom:16px">
+        <div class="field">
+          <label>Your Name</label>
+          <input type="text" id="memberNameInput" placeholder="Enter your name…" onkeydown="if(event.key==='Enter')lookupMyLoans()">
+          <div class="hint">Enter the name you used when checking out items.</div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="lookupMyLoans()"><i class="bi bi-search"></i> Find My Loans</button>
+      </div>
+      <div id="myLoansResults"></div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ─── Toast ─────────────────────────────────────────────────────────────── -->
+<div id="toast-area"></div>
+
+<!-- ─── Item Detail Modal ─────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayDetail">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3 id="detailModalTitle">Item Details</h3>
+      <button class="close-btn" onclick="closeModal('overlayDetail')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-layout">
+        <div id="detailCover"></div>
+        <div class="detail-info">
+          <div class="detail-title" id="detailTitle"></div>
+          <div class="detail-author" id="detailAuthor"></div>
+          <div class="detail-meta" id="detailMeta"></div>
+          <div id="detailStatusArea"></div>
+        </div>
+      </div>
+      <div class="detail-desc" id="detailDesc"></div>
+      <div id="detailHistory"></div>
+    </div>
+    <div class="modal-foot" id="detailFoot"></div>
+  </div>
+</div>
+
+<!-- ─── Checkout Modal ─────────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayCheckout">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-hdr">
+      <h3>Check Out Item</h3>
+      <button class="close-btn" onclick="closeModal('overlayCheckout')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-error" id="coAlert"><i class="bi bi-exclamation-circle"></i><span id="coAlertMsg"></span></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Borrowing: <strong id="coItemTitle" style="color:var(--text)"></strong></p>
+      <div class="field">
+        <label>Your Full Name *</label>
+        <input type="text" id="coName" placeholder="First Last" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>APEX Member ID <span style="font-weight:400;text-transform:none;color:var(--muted2)">(optional)</span></label>
+        <input type="text" id="coMemberId" placeholder="Member number (if known)">
+      </div>
+      <div class="field">
+        <label>Notes <span style="font-weight:400;text-transform:none;color:var(--muted2)">(optional)</span></label>
+        <input type="text" id="coNotes" placeholder="Any notes…">
+      </div>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--muted)">
+        <i class="bi bi-calendar-event" style="color:var(--accent)"></i>
+        Due date: <strong style="color:var(--text)" id="codueDateLabel"></strong> (14 days)
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('overlayCheckout')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmCheckout()" id="btnCheckout"><i class="bi bi-arrow-right-circle"></i> Check Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Return Confirm Modal ─────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayReturn2">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hdr">
+      <h3>Confirm Return</h3>
+      <button class="close-btn" onclick="closeModal('overlayReturn2')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Return this item to the library?</p>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px">
+        <div style="font-weight:600;font-size:14px" id="ret2Title"></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Checked out by: <strong id="ret2Member"></strong></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('overlayReturn2')">Cancel</button>
+      <button class="btn btn-primary" onclick="doReturn()"><i class="bi bi-check-lg"></i> Confirm Return</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let allItems = [];
+let currentFilter = 'all';
+let currentSearchQ = '';
+let pendingCheckoutItemId = null;
+let pendingReturnCheckoutId = null;
+
+// ─── Tab Navigation ───────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    switchTab(a.dataset.view);
+  });
+});
+function switchTab(name) {
+  document.querySelectorAll('.tab-nav a').forEach(a => a.classList.toggle('active', a.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
+  document.getElementById('heroSearch').style.display = name === 'browse' ? '' : 'none';
+  if (name === 'browse' && !allItems.length) loadCatalog();
+}
+
+// ─── Catalog ─────────────────────────────────────────────────────────────────
+async function loadCatalog() {
+  document.getElementById('catalogLoading').style.display = '';
+  document.getElementById('catalogGrid').innerHTML = '';
+  const { items } = await fetch('/api/items').then(r=>r.json());
+  allItems = items || [];
+  document.getElementById('catalogLoading').style.display = 'none';
+  renderCatalog();
+}
+function onSearch() {
+  currentSearchQ = document.getElementById('searchInput').value;
+  document.getElementById('clearBtn').style.display = currentSearchQ ? '' : 'none';
+  renderCatalog();
+}
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  currentSearchQ = '';
+  document.getElementById('clearBtn').style.display = 'none';
+  renderCatalog();
+}
+function setPill(el, filter) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = filter;
+  renderCatalog();
+}
+function renderCatalog() {
+  const q = currentSearchQ.toLowerCase();
+  let items = allItems.filter(i => {
+    const matchQ = !q || [i.title,i.author,i.isbn,i.barcode,i.publisher,i.description].some(f=>(f||'').toLowerCase().includes(q));
+    const matchF = currentFilter === 'all' ? true
+      : currentFilter === 'avail' ? i.status === 'Available'
+      : i.type === currentFilter;
+    return matchQ && matchF;
+  });
+  const grid = document.getElementById('catalogGrid');
+  const empty = document.getElementById('catalogEmpty');
+  document.getElementById('resultCount').textContent = `${items.length} item${items.length!==1?'s':''}`;
+  if (!items.length) { grid.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = items.map(i => `
+    <div class="item-card" onclick="openDetail(${i.id})">
+      <div class="card-cover">
+        ${i.cover_url
+          ? `<img src="${esc(i.cover_url)}" alt="${esc(i.title)}" onerror="this.parentNode.innerHTML='<div class=card-cover-placeholder><i class=bi style=font-size:44px;color:var(--muted2)></i></div>'">`
+          : `<div class="card-cover-placeholder"><i class="bi ${typeIcon(i.type)}" style="font-size:44px;color:var(--muted2)"></i></div>`}
+        <div class="card-status-badge">${i.status==='Available'
+          ? `<span class="badge badge-available"><i class="bi bi-check-circle"></i>In</span>`
+          : `<span class="badge badge-out"><i class="bi bi-x-circle"></i>Out</span>`}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-type"><span class="badge badge-${i.type}">${capitalize(i.type)}</span></div>
+        <div class="card-title">${esc(i.title)}</div>
+        <div class="card-author">${esc(i.author||'—')}</div>
+        <div class="card-actions">
+          ${i.status==='Available'
+            ? `<button class="btn btn-primary btn-block" style="padding:6px 10px;font-size:12px" onclick="event.stopPropagation();openCheckout(${i.id},'${esc(i.title)}')"><i class="bi bi-bookmark-plus"></i> Check Out</button>`
+            : `<button class="btn btn-secondary btn-block" style="padding:6px 10px;font-size:12px" disabled><i class="bi bi-x-circle"></i> Unavailable</button>`}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── Item Detail ──────────────────────────────────────────────────────────────
+async function openDetail(id) {
+  const { item, history } = await fetch(`/api/items/${id}`).then(r=>r.json());
+  if (!item) return;
+
+  document.getElementById('detailModalTitle').textContent =
+    item.type === 'video' ? 'Video Details' :
+    item.type === 'magazine' ? 'Magazine Details' :
+    item.type === 'game' ? 'Game Details' : 'Book Details';
+  document.getElementById('detailTitle').textContent   = item.title;
+  document.getElementById('detailAuthor').textContent  = item.author || '';
+
+  document.getElementById('detailCover').innerHTML = item.cover_url
+    ? `<img class="detail-cover" src="${esc(item.cover_url)}" onerror="this.outerHTML='<div class=detail-cover-ph><i class=bi style=font-size:36px;color:var(--muted2)></i></div>'">`
+    : `<div class="detail-cover-ph"><i class="bi ${typeIcon(item.type)}" style="font-size:36px;color:var(--muted2)"></i></div>`;
+
+  const meta = [];
+  if (item.publisher) meta.push(`<span class="meta-chip">Publisher: <strong>${esc(item.publisher)}</strong></span>`);
+  if (item.year)      meta.push(`<span class="meta-chip">Year: <strong>${esc(item.year)}</strong></span>`);
+  if (item.condition) meta.push(`<span class="meta-chip">Condition: <strong>${esc(item.condition)}</strong></span>`);
+  if (item.isbn)      meta.push(`<span class="meta-chip">ISBN: <strong>${esc(item.isbn)}</strong></span>`);
+  if (item.location)  meta.push(`<span class="meta-chip"><i class="bi bi-geo-alt"></i> <strong>${esc(item.location)}</strong></span>`);
+  document.getElementById('detailMeta').innerHTML = meta.join('');
+
+  document.getElementById('detailStatusArea').innerHTML = item.status === 'Available'
+    ? `<span class="badge badge-available" style="font-size:12px;padding:5px 12px"><i class="bi bi-check-circle"></i> Available to borrow</span>`
+    : `<span class="badge badge-out" style="font-size:12px;padding:5px 12px"><i class="bi bi-x-circle"></i> Currently checked out</span>`;
+
+  document.getElementById('detailDesc').textContent = item.description || '';
+
+  if (history && history.length) {
+    document.getElementById('detailHistory').innerHTML = `
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Borrowing History</div>
+      ${history.slice(0,5).map(h=>`
+        <div class="history-item">
+          <div><div style="font-size:13px">${esc(h.member_name)}</div><div style="font-size:11px;color:var(--muted)">${fmtDate(h.checkout_date)}</div></div>
+          ${h.return_date ? `<span class="badge badge-available">Returned ${fmtDate(h.return_date)}</span>` : `<span class="badge badge-out">Out</span>`}
+        </div>
+      `).join('')}
+    `;
+  } else {
+    document.getElementById('detailHistory').innerHTML = '';
+  }
+
+  document.getElementById('detailFoot').innerHTML = item.status === 'Available'
+    ? `<button class="btn btn-secondary" onclick="closeModal('overlayDetail')">Close</button>
+       <button class="btn btn-primary" onclick="closeModal('overlayDetail');openCheckout(${item.id},'${esc(item.title)}')"><i class="bi bi-bookmark-plus"></i> Check Out</button>`
+    : `<button class="btn btn-secondary" onclick="closeModal('overlayDetail')">Close</button>`;
+
+  document.getElementById('overlayDetail').classList.add('open');
+}
+
+// ─── Checkout ─────────────────────────────────────────────────────────────────
+function openCheckout(itemId, title) {
+  pendingCheckoutItemId = itemId;
+  document.getElementById('coItemTitle').textContent = title;
+  document.getElementById('coName').value = '';
+  document.getElementById('coMemberId').value = '';
+  document.getElementById('coNotes').value = '';
+  document.getElementById('coAlert').classList.remove('show');
+  const due = new Date(); due.setDate(due.getDate()+14);
+  document.getElementById('codueDateLabel').textContent = due.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('overlayCheckout').classList.add('open');
+  setTimeout(() => document.getElementById('coName').focus(), 200);
+}
+async function confirmCheckout() {
+  const name = document.getElementById('coName').value.trim();
+  if (!name) {
+    document.getElementById('coAlertMsg').textContent = 'Please enter your name.';
+    document.getElementById('coAlert').classList.add('show');
+    return;
+  }
+  const btn = document.getElementById('btnCheckout');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Checking out…';
+  const res = await fetch('/api/checkouts', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      item_id:     pendingCheckoutItemId,
+      member_name: name,
+      member_id:   document.getElementById('coMemberId').value.trim(),
+      notes:       document.getElementById('coNotes').value.trim()
+    })
+  }).then(r=>r.json());
+  btn.disabled=false; btn.innerHTML='<i class="bi bi-arrow-right-circle"></i> Check Out';
+  if (res.success) {
+    toast(`Checked out! Due ${fmtDate(res.due_date)}.`, true);
+    closeModal('overlayCheckout');
+    await loadCatalog();
+    renderCatalog();
+  } else {
+    document.getElementById('coAlertMsg').textContent = res.error || 'Checkout failed';
+    document.getElementById('coAlert').classList.add('show');
+  }
+}
+
+// ─── Return Search ────────────────────────────────────────────────────────────
+let returnSearchTimeout;
+function searchReturnItems() {
+  clearTimeout(returnSearchTimeout);
+  returnSearchTimeout = setTimeout(doReturnSearch, 300);
+}
+async function doReturnSearch() {
+  const q = document.getElementById('returnSearch').value.trim();
+  const results = document.getElementById('returnResults');
+  if (!q) { results.innerHTML=''; return; }
+  results.innerHTML = '<div style="text-align:center;padding:12px"><span class="spinner"></span></div>';
+  const { checkouts } = await fetch(`/api/checkouts?type=active`).then(r=>r.json());
+  const filtered = checkouts.filter(c =>
+    (c.title||'').toLowerCase().includes(q.toLowerCase()) ||
+    (c.member_name||'').toLowerCase().includes(q.toLowerCase())
+  );
+  if (!filtered.length) {
+    results.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">No checked-out items match your search.</div>';
+    return;
+  }
+  results.innerHTML = filtered.slice(0,8).map(c => `
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.title)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Out to: ${esc(c.member_name)} · Due ${fmtDate(c.due_date)}</div>
+      </div>
+      <button class="btn btn-success" style="font-size:12px;padding:6px 12px" onclick="openReturn2(${c.id},'${esc(c.title)}','${esc(c.member_name)}')">
+        <i class="bi bi-arrow-return-left"></i> Return
+      </button>
+    </div>
+  `).join('');
+}
+
+function openReturn2(id, title, member) {
+  pendingReturnCheckoutId = id;
+  document.getElementById('ret2Title').textContent  = title;
+  document.getElementById('ret2Member').textContent = member;
+  document.getElementById('overlayReturn2').classList.add('open');
+}
+async function doReturn() {
+  if (!pendingReturnCheckoutId) return;
+  const res = await fetch(`/api/checkouts/${pendingReturnCheckoutId}/return`, { method:'POST' }).then(r=>r.json());
+  if (res.success) {
+    toast('Item returned successfully!', true);
+    closeModal('overlayReturn2');
+    document.getElementById('returnSearch').value = '';
+    document.getElementById('returnResults').innerHTML = '';
+    await loadCatalog();
+    renderCatalog();
+  } else { toast(res.error || 'Return failed', false); }
+}
+
+// ─── My Loans ─────────────────────────────────────────────────────────────────
+async function lookupMyLoans() {
+  const name = document.getElementById('memberNameInput').value.trim();
+  if (!name) return;
+  const results = document.getElementById('myLoansResults');
+  results.innerHTML = '<div style="text-align:center;padding:20px"><span class="spinner"></span></div>';
+  const { checkouts } = await fetch(`/api/checkouts?member=${encodeURIComponent(name)}`).then(r=>r.json());
+  if (!checkouts || !checkouts.length) {
+    results.innerHTML = `<div class="empty"><i class="bi bi-inbox"></i><p>No active loans found for "${esc(name)}"</p><small>Check your name spelling matches what you used when checking out.</small></div>`;
+    return;
+  }
+  results.innerHTML = `
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">${checkouts.length} item${checkouts.length!==1?'s':''} borrowed by <strong style="color:var(--text)">${esc(name)}</strong></div>
+    ${checkouts.map(c => `
+      <div class="loan-card">
+        ${c.cover_url ? `<img style="width:36px;height:50px;border-radius:4px;object-fit:cover" src="${esc(c.cover_url)}">` : `<div class="list-cover-ph"><i class="bi ${typeIcon(c.type)}"></i></div>`}
+        <div class="loan-card-main">
+          <div class="loan-card-title">${esc(c.title)}</div>
+          <div class="loan-card-sub">
+            ${capitalize(c.type)} · 
+            Due <strong ${isOverdue(c.due_date)?`style="color:var(--red)"`:''}>${fmtDate(c.due_date)}</strong>
+            ${isOverdue(c.due_date) ? `<span class="badge badge-out" style="margin-left:6px">Overdue</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if(e.target===ov) closeModal(ov.id); });
+});
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') document.querySelectorAll('.overlay.open').forEach(o=>closeModal(o.id));
+});
+
+// ─── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, success=true) {
+  const t = document.createElement('div');
+  t.className = `toast ${success?'success':'error'}`;
+  t.innerHTML = `<i class="bi ${success?'bi-check-circle':'bi-exclamation-circle'}"></i><span>${esc(msg)}</span>`;
+  document.getElementById('toast-area').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function capitalize(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+function typeIcon(t) { return t==='magazine'?'bi-newspaper':t==='video'?'bi-camera-video':t==='game'?'bi-puzzle':'bi-book'; }
+function fmtDate(d) { if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function isOverdue(d) { return d && new Date(d) < new Date(); }
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+loadCatalog();
+</script>
+</body>
+</html>
