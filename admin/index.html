@@ -104,6 +104,7 @@ tr:hover td{background:var(--card2)}
 .type-magazine{background:rgba(188,140,255,.12);color:#bc8cff;border:1px solid rgba(188,140,255,.2)}
 .type-video{background:rgba(121,192,255,.12);color:var(--blue);border:1px solid rgba(121,192,255,.2)}
 .type-game{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.type-puzzle{background:rgba(255,140,0,.12);color:#ff9500;border:1px solid rgba(255,140,0,.2)}
 /* ─── Empty state ─────────────────────────────────────────────────────────── */
 .empty{text-align:center;padding:48px 20px;color:var(--muted)}
 .empty i{font-size:40px;display:block;margin-bottom:12px;opacity:.4}
@@ -156,9 +157,37 @@ tr:hover td{background:var(--card2)}
 .mini-row-main{flex:1;min-width:0}
 .mini-row-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini-row-sub{font-size:11px;color:var(--muted);margin-top:2px}
+/* ─── Login Overlay ───────────────────────────────── */
+#loginScreen{position:fixed;inset:0;background:#0a0a0f;z-index:9000;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.login-card{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:40px 44px;width:min(420px,94vw);text-align:center}
+.login-logo{width:52px;height:52px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:14px;display:grid;place-items:center;margin:0 auto 20px;font-size:26px}
+.login-title{font-size:22px;font-weight:700;margin-bottom:4px}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.login-input{width:100%;padding:12px 14px;border-radius:var(--radius-sm);background:var(--card2);border:1px solid var(--border2);color:var(--text);font-size:14px;outline:none;margin-bottom:14px;font-family:inherit;letter-spacing:.05em;transition:border .2s}
+.login-input:focus{border-color:var(--accent)}
+.login-btn{width:100%;padding:12px;border-radius:var(--radius-sm);background:var(--accent);color:#000;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:opacity .15s}
+.login-btn:hover{opacity:.88}
+.login-err{color:var(--red);font-size:12px;margin-top:10px;min-height:18px}
+.login-member-link{margin-top:24px;font-size:12px;color:var(--muted)}
+.login-member-link a{color:var(--accent);text-decoration:underline;cursor:pointer}
 </style>
 </head>
 <body>
+
+<!-- ─── Login Screen ──────────────────────────────────────────────────────────── -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">📚</div>
+    <div class="login-title">APEX Library Admin</div>
+    <div class="login-sub">Enter the admin password to continue</div>
+    <input type="password" class="login-input" id="loginPwd" placeholder="Password"
+      onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-member-link">Looking for the collection? <a href="/member">Member Portal →</a></div>
+  </div>
+</div>
+
 <div class="layout">
 
   <!-- ─── Sidebar ─────────────────────────────────────────────────────────── -->
@@ -171,13 +200,17 @@ tr:hover td{background:var(--card2)}
       <div class="nav-section">Main</div>
       <a href="#" data-view="dashboard" class="active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
       <a href="#" data-view="catalog"><i class="bi bi-collection-fill"></i> Catalog</a>
+      <div class="nav-section">Archives</div>
+      <a href="#" data-view="archives"><i class="bi bi-archive-fill"></i> Archives</a>
       <div class="nav-section">Checkouts</div>
       <a href="#" data-view="loans"><i class="bi bi-arrow-right-circle-fill"></i> Active Loans</a>
       <a href="#" data-view="overdue"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</a>
       <a href="#" data-view="history"><i class="bi bi-clock-history"></i> History</a>
     </nav>
     <div class="sidebar-foot">
-      <a href="http://localhost:3002" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Open Patron Portal</a>
+      <a href="#" onclick="openModal('overlayBackup')" style="color:var(--green)"><i class="bi bi-cloud-download"></i> Backup Data</a>
+      <a href="/member" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Open Member Portal</a>
+      <a href="#" onclick="doLogout()" style="margin-top:6px;color:var(--red)"><i class="bi bi-box-arrow-right"></i> Sign Out</a>
     </div>
   </aside>
 
@@ -215,6 +248,7 @@ tr:hover td{background:var(--card2)}
               <option value="magazine">Magazines</option>
               <option value="video">Videos</option>
               <option value="game">Games</option>
+              <option value="puzzle">Puzzles</option>
             </select>
             <select class="filter" id="catStatus" onchange="filterCatalog()">
               <option value="">All Status</option>
@@ -279,6 +313,20 @@ tr:hover td{background:var(--card2)}
         </div>
       </section>
 
+      <!-- Archives -->
+      <section class="view" id="view-archives">
+        <div class="section-hdr">
+          <h2>Archive Items</h2>
+          <button class="btn btn-primary" onclick="openArchiveModal(null)"><i class="bi bi-plus-lg"></i> Add Archive Item</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="width:52px"></th><th>Title</th><th>Type</th><th>Category</th><th>File / URL</th><th></th></tr></thead>
+            <tbody id="archiveTbody"><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- History -->
       <section class="view" id="view-history">
         <div class="section-hdr"><h2>Checkout History</h2>
@@ -296,8 +344,73 @@ tr:hover td{background:var(--card2)}
   </div><!-- /main -->
 </div><!-- /layout -->
 
-<!-- ─── Toast ─────────────────────────────────────────────────────────────── -->
+<!-- ─── Toast ───────────────────────────────────────────────────────────────── -->
 <div id="toast-area"></div>
+
+<!-- ─── Item Full History Modal ──────────────────────────────────────────────── -->
+<div class="overlay" id="overlayItemHistory">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-clock-history" style="color:var(--accent)"></i> <span id="histModalTitle">Item History</span></h3>
+      <button class="close-btn" onclick="closeModal('overlayItemHistory')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" id="histModalBody"></div>
+  </div>
+</div>
+
+<!-- ─── Archive Modal ────────────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayArchive">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-hdr">
+      <h3 id="modalArchiveTitle">Add Archive Item</h3>
+      <button class="close-btn" onclick="closeModal('overlayArchive')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-col-2"><label>Title *</label><input type="text" id="faTitle" placeholder="e.g. APEX Newsletter — Spring 2019"></div>
+        <div class="field"><label>Type</label>
+          <select id="faType">
+            <option value="photo">Photo</option>
+            <option value="newsletter">Newsletter</option>
+            <option value="video">Video</option>
+            <option value="recording">Class Recording</option>
+            <option value="document">Document</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Category</label><input type="text" id="faCategory" placeholder="e.g. Events, Education…"></div>
+        <div class="field"><label>Date / Period</label><input type="text" id="faDateLabel" placeholder="e.g. March 2019"></div>
+        <div class="field form-col-2"><label>File URL <span style="color:var(--muted2);font-weight:400;text-transform:none">(local path or URL)</span></label><input type="text" id="faFileUrl" placeholder="/archives/newsletter-2019-03.pdf  or  https://…"></div>
+        <div class="field form-col-2"><label>Thumbnail URL <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional)</span></label><input type="text" id="faThumbUrl" placeholder="https://…"></div>
+        <div class="field form-col-2"><label>Description</label><textarea id="faDesc" placeholder="Brief description…" rows="3"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('overlayArchive')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveArchive()"><i class="bi bi-check-lg"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Backup Modal ─────────────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayBackup">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-cloud-download" style="color:var(--green)"></i> Backup Library Data</h3>
+      <button class="close-btn" onclick="closeModal('overlayBackup')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px">Downloads a complete JSON backup of all library data including inventory, checkout history, archives, and item records.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary btn-block" onclick="downloadBackup('json')"><i class="bi bi-filetype-json"></i> Download JSON Backup</button>
+        <button class="btn btn-secondary btn-block" onclick="downloadBackup('csv')"><i class="bi bi-filetype-csv"></i> Download Items CSV</button>
+      </div>
+      <div style="margin-top:16px;padding:12px 14px;background:var(--card2);border-radius:var(--radius-sm);font-size:11px;color:var(--muted)">
+        <i class="bi bi-shield-check" style="color:var(--green)"></i> Backups include: all catalog items, full checkout history per item, member records, archive entries, and item notes.
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ─── Item Modal ─────────────────────────────────────────────────────────── -->
 <div class="overlay" id="overlayItem">
@@ -346,6 +459,7 @@ tr:hover td{background:var(--card2)}
             <option value="magazine">Magazine</option>
             <option value="video">Video / DVD / Blu-ray</option>
             <option value="game">Board Game</option>
+            <option value="puzzle">Puzzle</option>
           </select>
         </div>
         <div class="field">
@@ -376,6 +490,10 @@ tr:hover td{background:var(--card2)}
         <div class="field">
           <label>Barcode</label>
           <input type="text" id="fBarcode" placeholder="Barcode (if any)">
+        </div>
+        <div class="field">
+          <label>APEX Inventory # <span style="color:var(--muted2);font-weight:400;text-transform:none">(scan or type APEX barcode)</span></label>
+          <input type="text" id="fApexId" placeholder="e.g. APEX-00123" autocomplete="off">
         </div>
         <div class="field">
           <label>Shelf Location</label>
@@ -478,12 +596,44 @@ let allLoans = [];
 let pendingReturnId = null;
 let editingItemId   = null;
 
-// ─── Navigation ───────────────────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────────────
+function getAdminToken() { return sessionStorage.getItem('adminToken') || ''; }
+async function doLogin() {
+  const pwd = document.getElementById('loginPwd').value;
+  const err = document.getElementById('loginErr');
+  err.textContent = '';
+  const res = await fetch('/api/admin/login', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pwd})
+  }).then(r=>r.json());
+  if (res.success) {
+    sessionStorage.setItem('adminToken', res.token);
+    document.getElementById('loginScreen').style.display = 'none';
+    loadDashboard();
+  } else {
+    err.textContent = 'Incorrect password';
+    document.getElementById('loginPwd').value = '';
+    document.getElementById('loginPwd').focus();
+  }
+}
+async function doLogout() {
+  await fetch('/api/admin/logout', { method:'POST', headers:{'Content-Type':'application/json','x-admin-token':getAdminToken()} });
+  sessionStorage.removeItem('adminToken');
+  location.reload();
+}
+async function checkAuth() {
+  const tok = getAdminToken();
+  if (!tok) return false;
+  const { authenticated } = await fetch('/api/admin/check',{headers:{'x-admin-token':tok}}).then(r=>r.json()).catch(()=>({authenticated:false}));
+  return authenticated;
+}
+
+// ─── Navigation ─────────────────────────────────────────────────────────────
 const viewMeta = {
-  dashboard: { title:'Dashboard', sub:'Overview & recent activity' },
-  catalog:   { title:'Catalog',   sub:'Manage library inventory' },
-  loans:     { title:'Active Loans', sub:'Currently checked-out items' },
-  overdue:   { title:'Overdue', sub:'Items past their due date' },
+  dashboard: { title:'Dashboard',   sub:'Overview & recent activity' },
+  catalog:   { title:'Catalog',     sub:'Manage library inventory' },
+  archives:  { title:'Archives',    sub:'Historical APEX files & media' },
+  loans:     { title:'Active Loans',sub:'Currently checked-out items' },
+  overdue:   { title:'Overdue',     sub:'Items past their due date' },
   history:   { title:'Checkout History', sub:'Complete borrowing log' },
 };
 document.querySelectorAll('.nav a').forEach(a => {
@@ -500,14 +650,18 @@ function switchView(name) {
   document.getElementById('viewSub').textContent   = m.sub || '';
   if (name === 'dashboard') loadDashboard();
   if (name === 'catalog')   loadCatalog();
+  if (name === 'archives')  loadArchives();
   if (name === 'loans')     loadLoans();
   if (name === 'overdue')   loadOverdue();
   if (name === 'history')   loadHistory();
 }
 
-// ─── API Helpers ───────────────────────────────────────────────────────────────
+// ─── API Helpers ─────────────────────────────────────────────────────────────
 async function apiFetch(path, opts={}) {
-  const r = await fetch(API + path, { headers:{'Content-Type':'application/json'}, ...opts });
+  const tok = getAdminToken();
+  const headers = {'Content-Type':'application/json'};
+  if (tok) headers['x-admin-token'] = tok;
+  const r = await fetch(API + path, { headers, ...opts });
   return r.json();
 }
 
@@ -520,9 +674,11 @@ async function loadDashboard() {
     ${statCard('Available',   stats.available, 'bi-check-circle', 'green')}
     ${statCard('Checked Out', stats.checked_out, 'bi-arrow-right-circle', 'orange')}
     ${statCard('Overdue',     stats.overdue, 'bi-exclamation-triangle', 'red')}
-    ${statCard('Books',       stats.books, 'bi-book', 'accent')}
-    ${statCard('Magazines',   stats.magazines, 'bi-newspaper', 'purple')}
-    ${statCard('Videos',      stats.videos, 'bi-camera-video', 'blue')}
+    ${statCard('Books',       stats.books,    'bi-book',        'accent')}
+    ${statCard('Magazines',   stats.magazines,'bi-newspaper',   'purple')}
+    ${statCard('Videos',      stats.videos,   'bi-camera-video','blue')}
+    ${statCard('Games',       stats.games,    'bi-controller',  'green')}
+    ${statCard('Puzzles',     stats.puzzles,  'bi-puzzle',      'orange')}
   `;
   // Recent checkouts
   const { checkouts } = await apiFetch('/api/checkouts?type=active');
@@ -569,7 +725,7 @@ function filterCatalog() {
   const t = document.getElementById('catType').value;
   const s = document.getElementById('catStatus').value;
   renderCatalog(allItems.filter(i => {
-    const match = !q || [i.title, i.author, i.isbn, i.barcode, i.publisher].some(f => (f||'').toLowerCase().includes(q));
+    const match = !q || [i.title, i.author, i.isbn, i.barcode, i.apex_id, i.publisher].some(f => (f||'').toLowerCase().includes(q));
     return match && (!t || i.type===t) && (!s || i.status===s);
   }));
 }
@@ -581,12 +737,13 @@ function renderCatalog(items) {
       <td>${i.cover_url ? `<img class="cover-thumb" src="${esc(i.cover_url)}" onerror="this.parentNode.innerHTML='<div class=cover-placeholder><i class=bi bi-book></i></div>'">` : i.isbn ? `<div class="cover-placeholder" title="Has ISBN — click ✦ to fetch cover"><i class="bi bi-stars" style="color:var(--orange);opacity:.85"></i></div>` : `<div class="cover-placeholder"><i class="bi ${typeIcon(i.type)}"></i></div>`}</td>
       <td><div class="item-title">${esc(i.title)}</div><div class="item-sub">${esc(i.author||'—')}</div></td>
       <td><span class="badge type-${i.type}">${capitalize(i.type)}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${esc(i.isbn || i.barcode || '—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(i.apex_id ? '⬡ '+i.apex_id : (i.isbn || i.barcode || '—'))}</td>
       <td>${condBadge(i.condition)}</td>
       <td>${statusBadge(i.status)}</td>
       <td style="font-size:11px;color:var(--muted)">${fmtDate(i.added_date)}</td>
       <td><div style="display:flex;gap:4px">
-        ${i.isbn ? `<button class="btn btn-secondary btn-xs" data-enrich-id="${i.id}" title="Fetch cover &amp; metadata from Open Library" onclick="enrichItem(${i.id})"><i class="bi bi-stars"></i></button>` : ''}
+        ${i.isbn ? `<button class="btn btn-secondary btn-xs" data-enrich-id="${i.id}" title="Fetch cover & metadata from Open Library" onclick="enrichItem(${i.id})"><i class="bi bi-stars"></i></button>` : ''}
+        <button class="btn btn-secondary btn-xs" title="Full item history" onclick="openItemHistory(${i.id},'${esc(i.title)}')"><i class="bi bi-clock-history"></i></button>
         <button class="btn btn-secondary btn-xs" onclick="openItemModal(${i.id})"><i class="bi bi-pencil"></i></button>
       </div></td>
     </tr>
@@ -668,6 +825,7 @@ function openItemModal(id) {
       document.getElementById('fDescription').value = item.description || '';
       document.getElementById('fISBN').value        = item.isbn        || '';
       document.getElementById('fBarcode').value     = item.barcode     || '';
+      document.getElementById('fApexId').value      = item.apex_id     || '';
       document.getElementById('fCondition').value   = item.condition   || 'Good';
       document.getElementById('fCoverUrl').value    = item.cover_url   || '';
       document.getElementById('fLocation').value    = item.location    || '';
@@ -677,7 +835,7 @@ function openItemModal(id) {
   document.getElementById('overlayItem').classList.add('open');
 }
 function clearForm() {
-  ['fTitle','fAuthor','fPublisher','fYear','fDescription','fISBN','fBarcode','fCoverUrl','fLocation','fNotes','isbnInput'].forEach(id => {
+  ['fTitle','fAuthor','fPublisher','fYear','fDescription','fISBN','fBarcode','fApexId','fCoverUrl','fLocation','fNotes','isbnInput'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('fType').value = 'book';
@@ -706,6 +864,7 @@ async function saveItem() {
     description: document.getElementById('fDescription').value.trim(),
     isbn: document.getElementById('fISBN').value.trim(),
     barcode: document.getElementById('fBarcode').value.trim(),
+    apex_id: document.getElementById('fApexId').value.trim(),
     condition: document.getElementById('fCondition').value,
     cover_url: document.getElementById('fCoverUrl').value.trim(),
     location: document.getElementById('fLocation').value.trim(),
@@ -752,6 +911,14 @@ async function lookupISBN() {
   if (d.isbn)        document.getElementById('fISBN').value = d.isbn;
   // Don't force type; keep whatever user selected
   showAlert('Fields filled from Open Library & Google Books!', true);
+}
+
+// ─── Modals ─────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
 }
 
 // ─── Type-change handler (show/hide lookup sections) ──────────────────────────
@@ -869,7 +1036,7 @@ function toast(msg, success=true) {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
-function typeIcon(t) { return t==='magazine'?'bi-newspaper':t==='video'?'bi-camera-video':t==='game'?'bi-puzzle':'bi-book'; }
+function typeIcon(t) { return t==='magazine'?'bi-newspaper':t==='video'?'bi-camera-video':t==='game'?'bi-controller':t==='puzzle'?'bi-puzzle':'bi-book'; }
 function fmtDate(d) { if (!d) return '—'; const dt = new Date(d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function isOverdue(d) { return d && new Date(d) < new Date(); }
 function daysDue(d) { return Math.floor((new Date()-new Date(d))/(1000*60*60*24)); }
@@ -993,8 +1160,164 @@ async function enrichItem(id) {
   }
 }
 
-// ─── Boot ─────────────────────────────────────────────────────────────────────────────────
-loadDashboard();
+// ─── Item History (admin-only full record) ──────────────────────────────────
+async function openItemHistory(id, title) {
+  document.getElementById('histModalTitle').textContent = title;
+  document.getElementById('histModalBody').innerHTML = '<div style="text-align:center;padding:24px"><span class="spinner"></span></div>';
+  openModal('overlayItemHistory');
+  const { item, history } = await apiFetch(`/api/items/${id}`);
+  if (!item) { document.getElementById('histModalBody').innerHTML = '<p style="color:var(--red)">Item not found.</p>'; return; }
+  const rows = (history||[]).map(h => `
+    <tr>
+      <td>${esc(h.member_name)}<br><span style="font-size:11px;color:var(--muted)">${esc(h.member_id||'')}</span></td>
+      <td style="font-size:12px">${fmtDate(h.checkout_date)}</td>
+      <td style="font-size:12px">${fmtDate(h.due_date)}</td>
+      <td style="font-size:12px">${h.return_date ? `<span class="badge badge-green">${fmtDate(h.return_date)}</span>` : `<span class="badge badge-orange">Still Out</span>`}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(h.notes||'')}</td>
+    </tr>
+  `).join('');
+  document.getElementById('histModalBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;font-size:12px">
+      <div style="background:var(--card2);border-radius:6px;padding:10px 12px">
+        <div style="color:var(--muted);margin-bottom:2px">Type</div><strong>${capitalize(item.type)}</strong></div>
+      <div style="background:var(--card2);border-radius:6px;padding:10px 12px">
+        <div style="color:var(--muted);margin-bottom:2px">Status</div>${statusBadge(item.status)}</div>
+      <div style="background:var(--card2);border-radius:6px;padding:10px 12px">
+        <div style="color:var(--muted);margin-bottom:2px">Condition</div><strong>${esc(item.condition)}</strong></div>
+      <div style="background:var(--card2);border-radius:6px;padding:10px 12px">
+        <div style="color:var(--muted);margin-bottom:2px">Location</div><strong>${esc(item.location||'—')}</strong></div>
+      <div style="background:var(--card2);border-radius:6px;padding:10px 12px">
+        <div style="color:var(--muted);margin-bottom:2px">ISBN</div><strong>${esc(item.isbn||'—')}</strong></div>
+      <div style="background:var(--card2);border-radius:6px;padding:10px 12px">
+        <div style="color:var(--muted);margin-bottom:2px">APEX #</div><strong>${esc(item.apex_id||'—')}</strong></div>
+      ${item.notes ? `<div style="background:var(--card2);border-radius:6px;padding:10px 12px;grid-column:1/-1"><div style="color:var(--muted);margin-bottom:2px">Admin Notes</div><strong>${esc(item.notes)}</strong></div>` : ''}
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">
+      Checkout History (${(history||[]).length} record${history.length!==1?'s':''})
+    </div>
+    ${rows ? `<div class="table-wrap" style="max-height:320px;overflow-y:auto">
+      <table><thead><tr><th>Member</th><th>Checked Out</th><th>Due</th><th>Returned</th><th>Notes</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`
+    : '<div class="empty" style="padding:24px"><i class="bi bi-inbox"></i><p>No checkout history</p></div>'}
+  `;
+}
+
+// ─── Backup ─────────────────────────────────────────────────────────────
+async function downloadBackup(fmt) {
+  const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+  if (fmt === 'json') {
+    const [items, co, arch] = await Promise.all([
+      apiFetch('/api/items'),
+      apiFetch('/api/checkouts'),
+      apiFetch('/api/archives').catch(()=>({archives:[]}))
+    ]);
+    // Attach full history to each item
+    const allCo = co.checkouts || [];
+    const enriched = (items.items||[]).map(i => ({
+      ...i,
+      checkout_history: allCo.filter(c => c.item_id === i.id)
+    }));
+    const blob = new Blob([JSON.stringify({
+      generated:  new Date().toISOString(),
+      items:      enriched,
+      checkouts:  allCo,
+      archives:   arch.archives || []
+    }, null, 2)], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `apex-library-backup-${ts}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('JSON backup downloaded!', true);
+  } else if (fmt === 'csv') {
+    const { items } = await apiFetch('/api/items');
+    const cols = ['id','title','type','author','publisher','year','isbn','barcode','apex_id','condition','status','location','notes','added_date'];
+    const csv  = [cols.join(','), ...(items||[]).map(i =>
+      cols.map(c => `"${String(i[c]||'').replace(/"/g,'""')}"`).join(',')
+    )].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download = `apex-library-items-${ts}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('CSV downloaded!', true);
+  }
+}
+async function loadArchives() {
+  const { archives } = await apiFetch('/api/archives');
+  renderArchives(archives || []);
+}
+const ARCHIVE_TYPES = ['photo','newsletter','video','recording','document','other'];
+const ARCHIVE_ICON = {photo:'bi-image',newsletter:'bi-newspaper',video:'bi-camera-video',recording:'bi-mic',document:'bi-file-earmark-text',other:'bi-archive'};
+function archiveTypeLabel(t) { return t.charAt(0).toUpperCase()+t.slice(1); }
+function renderArchives(archives) {
+  const tb = document.getElementById('archiveTbody');
+  if (!archives.length) { tb.innerHTML=`<tr><td colspan="6"><div class="empty"><i class="bi bi-archive"></i><p>No archive items yet</p><small>Add historical APEX files, photos, newsletters and more</small></div></td></tr>`; return; }
+  tb.innerHTML = archives.map(a => `
+    <tr>
+      <td>${a.thumb_url ? `<img src="${esc(a.thumb_url)}" style="width:40px;height:40px;object-fit:cover;border-radius:6px">` : `<div style="width:40px;height:40px;background:var(--card2);border-radius:6px;display:grid;place-items:center"><i class="bi ${ARCHIVE_ICON[a.type]||'bi-archive'}" style="color:var(--muted)"></i></div>`}</td>
+      <td><div class="item-title">${esc(a.title)}</div><div class="item-sub">${esc(a.date_label||'')}</div></td>
+      <td><span class="badge" style="background:rgba(200,150,60,.12);color:var(--accent);border:1px solid rgba(200,150,60,.2)">${archiveTypeLabel(a.type)}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${esc(a.category||'—')}</td>
+      <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${esc(a.file_url||'—')}</td>
+      <td><button class="btn btn-secondary btn-xs" onclick="openArchiveModal(${a.id})"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-danger btn-xs" style="margin-left:4px" onclick="deleteArchive(${a.id})"><i class="bi bi-trash"></i></button></td>
+    </tr>
+  `).join('');
+}
+async function openArchiveModal(id) {
+  editingArchiveId = id || null;
+  clearArchiveForm();
+  document.getElementById('modalArchiveTitle').textContent = id ? 'Edit Archive Item' : 'Add Archive Item';
+  if (id) {
+    const a = (await apiFetch(`/api/archives`)).archives?.find(x=>x.id===id);
+    if (!a) return;
+    document.getElementById('faTitle').value      = a.title      || '';
+    document.getElementById('faType').value       = a.type       || 'photo';
+    document.getElementById('faCategory').value   = a.category   || '';
+    document.getElementById('faDateLabel').value  = a.date_label || '';
+    document.getElementById('faDesc').value       = a.description|| '';
+    document.getElementById('faFileUrl').value    = a.file_url   || '';
+    document.getElementById('faThumbUrl').value   = a.thumb_url  || '';
+  }
+  document.getElementById('overlayArchive').classList.add('open');
+}
+function clearArchiveForm() {
+  ['faTitle','faCategory','faDateLabel','faDesc','faFileUrl','faThumbUrl'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('faType').value='photo';
+}
+async function saveArchive() {
+  const body = {
+    title:       document.getElementById('faTitle').value.trim(),
+    type:        document.getElementById('faType').value,
+    category:    document.getElementById('faCategory').value.trim(),
+    date_label:  document.getElementById('faDateLabel').value.trim(),
+    description: document.getElementById('faDesc').value.trim(),
+    file_url:    document.getElementById('faFileUrl').value.trim(),
+    thumb_url:   document.getElementById('faThumbUrl').value.trim(),
+  };
+  if (!body.title) { alert('Title is required'); return; }
+  const res = await apiFetch(editingArchiveId ? `/api/archives/${editingArchiveId}` : '/api/archives', {
+    method: editingArchiveId ? 'PUT' : 'POST', body: JSON.stringify(body)
+  });
+  if (res.success) { toast(editingArchiveId ? 'Archive updated.' : 'Archive added!', true); closeModal('overlayArchive'); loadArchives(); }
+  else alert(res.error || 'Save failed');
+}
+async function deleteArchive(id) {
+  if (!confirm('Delete this archive item?')) return;
+  const res = await apiFetch(`/api/archives/${id}`, { method:'DELETE' });
+  if (res.success) { toast('Deleted.', true); loadArchives(); }
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────
+(async () => {
+  const ok = await checkAuth();
+  if (ok) {
+    document.getElementById('loginScreen').style.display = 'none';
+    loadDashboard();
+  } else {
+    // keep login screen visible, don't load dashboard
+    document.getElementById('loginPwd').focus();
+  }
+})();
 </script>
 </body>
 </html>

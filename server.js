@@ -3,22 +3,37 @@ const cors    = require('cors');
 const path    = require('path');
 const https   = require('https');
 const http    = require('http');
+const crypto  = require('crypto');
 const { db, q } = require('./db');
 
-const ADMIN_PORT  = 3001;
-const PATRON_PORT = 3002;
+const PORT = process.env.PORT || 5000;
 
-const adminApp  = express();
-const patronApp = express();
+const app = express();
+
+// ─── Admin Session Store ──────────────────────────────────────────────────────
+const ADMIN_PASSWORD = 'APEXed2026!';
+const adminTokens    = new Set();
+
+function isAdmin(req) {
+  const tok = req.headers['x-admin-token'];
+  return tok && adminTokens.has(tok);
+}
+
+// ─── On-Site IP Detection ─────────────────────────────────────────────────────
+function isOnSite(req) {
+  const raw = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+            || req.socket?.remoteAddress || '';
+  const ip  = raw.replace(/^::ffff:/, '');
+  return ip === '::1' || /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
+}
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
-[adminApp, patronApp].forEach(app => {
-  app.use(cors());
-  app.use(express.json());
-});
+app.use(cors());
+app.use(express.json());
 
-adminApp.use(express.static(path.join(__dirname, 'admin')));
-patronApp.use(express.static(path.join(__dirname, 'patron')));
+// Patron portal at /patron, admin at /
+app.use('/patron', express.static(path.join(__dirname, 'patron')));
+app.use(express.static(path.join(__dirname, 'admin')));
 
 // ─── Generic HTTP/HTTPS GET with redirect following ─────────────────────────────────────────
 function httpGet(url, hops = 0) {
@@ -216,13 +231,62 @@ function xmlEntities(s) {
 // ─── Shared API Routes ────────────────────────────────────────────────────────
 function mountAPI(app) {
 
+  // --- Admin Auth ---
+  app.post('/api/admin/login', (req, res) => {
+    if (req.body.password === ADMIN_PASSWORD) {
+      const token = crypto.randomBytes(32).toString('hex');
+      adminTokens.add(token);
+      setTimeout(() => adminTokens.delete(token), 8 * 60 * 60 * 1000); // 8h TTL
+      res.json({ success: true, token });
+    } else {
+      res.status(401).json({ success: false, error: 'Invalid password' });
+    }
+  });
+  app.post('/api/admin/logout', (req, res) => {
+    const tok = req.headers['x-admin-token'];
+    if (tok) adminTokens.delete(tok);
+    res.json({ success: true });
+  });
+  app.get('/api/admin/check', (req, res) => {
+    res.json({ authenticated: isAdmin(req) });
+  });
+
+  // --- On-Site Check ---
+  app.get('/api/is-onsite', (req, res) => {
+    res.json({ onsite: isOnSite(req) });
+  });
+
+  // --- Archives (on-site only) ---
+  app.get('/api/archives', (req, res) => {
+    if (!isOnSite(req)) return res.status(403).json({ success:false, error:'On-site access only' });
+    try { res.json({ success:true, archives: q.archiveAll.all() }); }
+    catch(e) { res.status(500).json({ success:false, error:e.message }); }
+  });
+  app.post('/api/archives', (req, res) => {
+    try {
+      const b = sanitizeArchive(req.body);
+      const r = q.archiveIns.run(b);
+      res.json({ success:true, id: r.lastInsertRowid });
+    } catch(e) { res.status(400).json({ success:false, error:e.message }); }
+  });
+  app.put('/api/archives/:id', (req, res) => {
+    try {
+      q.archiveUpd.run({ ...sanitizeArchive(req.body), id: req.params.id });
+      res.json({ success:true });
+    } catch(e) { res.status(400).json({ success:false, error:e.message }); }
+  });
+  app.delete('/api/archives/:id', (req, res) => {
+    try { q.archiveDel.run(req.params.id); res.json({ success:true }); }
+    catch(e) { res.status(400).json({ success:false, error:e.message }); }
+  });
+
   // --- Items ---
 
   app.get('/api/items', (req, res) => {
     try {
       const { search, type, status } = req.query;
       let items = search
-        ? q.search.all(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`)
+        ? q.search.all(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`)
         : q.getAll.all();
       if (type)   items = items.filter(i => i.type === type);
       if (status) items = items.filter(i => i.status === status);
@@ -299,8 +363,8 @@ function mountAPI(app) {
       const patched = {
         title: item.title, type: item.type, author: item.author,
         publisher: item.publisher, year: item.year, description: item.description,
-        isbn: item.isbn, barcode: item.barcode, condition: item.condition,
-        cover_url: item.cover_url, location: item.location, notes: item.notes
+        isbn: item.isbn, barcode: item.barcode, apex_id: item.apex_id || '',
+        condition: item.condition, cover_url: item.cover_url, location: item.location, notes: item.notes
       };
 
       const fill = (field, src) => {
@@ -448,6 +512,7 @@ function sanitizeItem(body) {
     description: (body.description || '').trim(),
     isbn:        (body.isbn        || '').trim(),
     barcode:     (body.barcode     || '').trim(),
+    apex_id:     (body.apex_id     || '').trim(),
     condition:   (body.condition   || 'Good').trim(),
     cover_url:   (body.cover_url   || '').trim(),
     location:    (body.location    || '').trim(),
@@ -455,15 +520,27 @@ function sanitizeItem(body) {
   };
 }
 
+function sanitizeArchive(b) {
+  return {
+    title:       (b.title       || '').trim(),
+    type:        (b.type        || 'photo').trim(),
+    category:    (b.category    || '').trim(),
+    description: (b.description || '').trim(),
+    file_url:    (b.file_url    || '').trim(),
+    thumb_url:   (b.thumb_url   || '').trim(),
+    date_label:  (b.date_label  || '').trim(),
+  };
+}
+
 // ─── Mount & Start ────────────────────────────────────────────────────────────
-mountAPI(adminApp);
-mountAPI(patronApp);
+mountAPI(app);
 
-adminApp.listen(ADMIN_PORT, () => {
-  console.log(`\n  📚  APEX Library Admin  →  http://localhost:${ADMIN_PORT}`);
-});
-patronApp.listen(PATRON_PORT, () => {
-  console.log(`  🔖  APEX Library Patron →  http://localhost:${PATRON_PORT}\n`);
-});
+// /member alias for /patron
+app.use('/member', express.static(path.join(__dirname, 'patron')));
 
-console.log('  Press Ctrl+C to stop.\n');
+app.listen(PORT, () => {
+  console.log(`\n  📚  APEX Library Admin   →  http://localhost:${PORT}`);
+  console.log(`  🏛️  APEX Library Member  →  http://localhost:${PORT}/member`);
+  console.log(`  🔒  Admin password: [configured]\n`);
+  console.log('  Press Ctrl+C to stop.\n');
+});
