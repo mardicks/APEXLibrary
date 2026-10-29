@@ -315,7 +315,8 @@ a{color:inherit;text-decoration:none}
     </div>
     <div class="modal-body">
       <div class="alert alert-error" id="coAlert"><i class="bi bi-exclamation-circle"></i><span id="coAlertMsg"></span></div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Borrowing: <strong id="coItemTitle" style="color:var(--text)"></strong></p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Borrowing: <strong id="coItemTitle" style="color:var(--text)"></strong></p>
+      <div id="coApexIdRow" style="display:none;font-size:12px;color:var(--muted);padding:6px 0;margin-bottom:8px;border-bottom:1px solid var(--border)"></div>
       <div class="field">
         <label>Your Full Name *</label>
         <input type="text" id="coName" placeholder="First Last" autocomplete="name">
@@ -414,7 +415,7 @@ function renderCatalog() {
   let items = allItems.filter(i => {
     const matchQ = !q || [i.title,i.author,i.isbn,i.barcode,i.publisher,i.description].some(f=>(f||'').toLowerCase().includes(q));
     const matchF = currentFilter === 'all' ? true
-      : currentFilter === 'avail' ? i.status === 'Available'
+      : currentFilter === 'avail' ? (i.avail_count !== undefined ? i.avail_count > 0 : i.status === 'Available')
       : i.type === currentFilter;
     return matchQ && matchF;
   });
@@ -423,39 +424,45 @@ function renderCatalog() {
   document.getElementById('resultCount').textContent = `${items.length} item${items.length!==1?'s':''}`;
   if (!items.length) { grid.innerHTML=''; empty.style.display=''; return; }
   empty.style.display = 'none';
-  grid.innerHTML = items.map(i => `
+  grid.innerHTML = items.map(i => {
+    const copyCount  = i.copy_count  || 1;
+    const availCount = i.avail_count !== undefined ? i.avail_count : (i.status === 'Available' ? 1 : 0);
+    const hasAvail   = availCount > 0;
+    const copyLabel  = copyCount > 1 ? `${availCount}/${copyCount} avail` : (hasAvail ? 'Available' : 'Checked Out');
+    const badgeCls   = hasAvail ? 'badge-available' : 'badge-out';
+    const badgeIcon  = hasAvail ? 'bi-check-circle' : 'bi-x-circle';
+    return `
     <div class="item-card" onclick="openDetail(${i.id})">
       <div class="card-cover">
         ${i.cover_url
           ? `<img src="${esc(i.cover_url)}" alt="${esc(i.title)}" onerror="this.parentNode.innerHTML='<div class=card-cover-placeholder><i class=bi style=font-size:44px;color:var(--muted2)></i></div>'">`
           : `<div class="card-cover-placeholder"><i class="bi ${typeIcon(i.type)}" style="font-size:44px;color:var(--muted2)"></i></div>`}
-        <div class="card-status-badge">${i.status==='Available'
-          ? `<span class="badge badge-available"><i class="bi bi-check-circle"></i>In</span>`
-          : `<span class="badge badge-out"><i class="bi bi-x-circle"></i>Out</span>`}</div>
+        <div class="card-status-badge"><span class="badge ${badgeCls}"><i class="bi ${badgeIcon}"></i>${copyLabel}</span></div>
       </div>
       <div class="card-body">
         <div class="card-type"><span class="badge badge-${i.type}">${capitalize(i.type)}</span></div>
         <div class="card-title">${esc(i.title)}</div>
-        <div class="card-author">${esc(i.author||'—')}</div>
+        <div class="card-author">${esc(i.author||'—')}${(i.barcode||i.apex_id) ? ` <span style="font-family:monospace;font-size:10px;color:var(--accent);opacity:.8">⬡${esc(i.barcode||i.apex_id)}</span>` : ''}</div>
         <div class="card-actions">
-          ${i.status==='Available'
-            ? `<button class="btn btn-primary btn-block" style="padding:6px 10px;font-size:12px" onclick="event.stopPropagation();openCheckout(${i.id},'${esc(i.title)}')"><i class="bi bi-bookmark-plus"></i> Check Out</button>`
+          ${hasAvail
+            ? `<button class="btn btn-primary btn-block" style="padding:6px 10px;font-size:12px" onclick="event.stopPropagation();openCheckout(${i.id},'${jss(i.title)}','')"><i class="bi bi-bookmark-plus"></i> Check Out</button>`
             : `<button class="btn btn-secondary btn-block" style="padding:6px 10px;font-size:12px" disabled><i class="bi bi-x-circle"></i> Unavailable</button>`}
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 // ─── Item Detail ──────────────────────────────────────────────────────────────
 async function openDetail(id) {
-  const { item, history } = await fetch(`/api/items/${id}`).then(r=>r.json());
+  const { item, copies, history } = await fetch(`/api/items/${id}`).then(r=>r.json());
   if (!item) return;
 
   document.getElementById('detailModalTitle').textContent =
     item.type === 'video' ? 'Video Details' :
     item.type === 'magazine' ? 'Magazine Details' :
-    item.type === 'game' ? 'Game Details' : 'Book Details';
+    item.type === 'game' ? 'Game Details' :
+    item.type === 'puzzle' ? 'Puzzle Details' : 'Book Details';
   document.getElementById('detailTitle').textContent   = item.title;
   document.getElementById('detailAuthor').textContent  = item.author || '';
 
@@ -466,19 +473,60 @@ async function openDetail(id) {
   const meta = [];
   if (item.publisher) meta.push(`<span class="meta-chip">Publisher: <strong>${esc(item.publisher)}</strong></span>`);
   if (item.year)      meta.push(`<span class="meta-chip">Year: <strong>${esc(item.year)}</strong></span>`);
-  if (item.condition) meta.push(`<span class="meta-chip">Condition: <strong>${esc(item.condition)}</strong></span>`);
   if (item.isbn)      meta.push(`<span class="meta-chip">ISBN: <strong>${esc(item.isbn)}</strong></span>`);
   if (item.location)  meta.push(`<span class="meta-chip"><i class="bi bi-geo-alt"></i> <strong>${esc(item.location)}</strong></span>`);
+  // Show APEX ID — use canonical item's apex_id (resolved after copies load below)
+  // Will be updated once copies are available; set placeholder now
+  const _apex = item.barcode || item.apex_id;
+  if (_apex) meta.push(`<span class="meta-chip" id="detailApexChip" style="font-family:monospace;color:var(--accent);border-color:rgba(212,168,67,.3);background:rgba(212,168,67,.08)">⬡ ${esc(_apex)}</span>`);
+  else       meta.push(`<span class="meta-chip" id="detailApexChip" style="display:none"></span>`);
   document.getElementById('detailMeta').innerHTML = meta.join('');
 
-  document.getElementById('detailStatusArea').innerHTML = item.status === 'Available'
-    ? `<span class="badge badge-available" style="font-size:12px;padding:5px 12px"><i class="bi bi-check-circle"></i> Available to borrow</span>`
-    : `<span class="badge badge-out" style="font-size:12px;padding:5px 12px"><i class="bi bi-x-circle"></i> Currently checked out</span>`;
+  // Multi-copy availability — fall back gracefully if server hasn't returned copies yet
+  const allCopies   = (copies && copies.length) ? copies : [item];
+  const availCopies = allCopies.filter(c => c.status === 'Available');
+  const totalCopies = allCopies.length;
+  const firstAvail  = availCopies[0];  // undefined if nothing available
+
+  // Update APEX ID chip — prefer first available copy's ID, fall back to canonical
+  const _copyApex = c => c ? (c.barcode || c.apex_id || '') : '';
+  const displayApex = _copyApex(firstAvail) || _copyApex(allCopies[0]) || item.barcode || item.apex_id;
+  const apexChip = document.getElementById('detailApexChip');
+  if (apexChip) {
+    if (displayApex) {
+      apexChip.style.display = '';
+      apexChip.innerHTML = `⬡ ${esc(displayApex)}`;
+    } else {
+      apexChip.style.display = 'none';
+    }
+  }
+
+  document.getElementById('detailStatusArea').innerHTML = firstAvail
+    ? `<span class="badge badge-available" style="font-size:12px;padding:5px 12px"><i class="bi bi-check-circle"></i> ${totalCopies > 1 ? `${availCopies.length} of ${totalCopies} copies available` : 'Available to borrow'}</span>`
+    : `<span class="badge badge-out" style="font-size:12px;padding:5px 12px"><i class="bi bi-x-circle"></i> ${totalCopies > 1 ? 'All copies checked out' : 'Currently checked out'}</span>`;
 
   document.getElementById('detailDesc').textContent = item.description || '';
 
+  // Copies list (only shown if more than 1 physical copy)
+  let copiesHtml = '';
+  if (totalCopies > 1) {
+    copiesHtml = `<div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Copies (${totalCopies})</div>
+      ${allCopies.map((c,idx) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;color:var(--muted2);min-width:20px">#${idx+1}</span>
+          ${(c.barcode||c.apex_id) ? `<span style="font-family:monospace;font-size:11px;color:var(--accent)">⬡ ${esc(c.barcode||c.apex_id)}</span>` : ''}
+          <span class="badge ${c.status==='Available'?'badge-available':'badge-out'}" style="font-size:10px">
+            <i class="bi ${c.status==='Available'?'bi-check-circle':'bi-x-circle'}"></i>${c.status}
+          </span>
+          ${c.condition ? `<span style="font-size:11px;color:var(--muted)">${esc(c.condition)}</span>` : ''}
+          ${c.location  ? `<span style="font-size:11px;color:var(--muted)"><i class="bi bi-geo-alt"></i> ${esc(c.location)}</span>` : ''}
+        </div>`).join('')}
+    </div>`;
+  }
+
   if (history && history.length) {
-    document.getElementById('detailHistory').innerHTML = `
+    document.getElementById('detailHistory').innerHTML = copiesHtml + `
       <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Borrowing History</div>
       ${history.slice(0,5).map(h=>`
         <div class="history-item">
@@ -488,21 +536,34 @@ async function openDetail(id) {
       `).join('')}
     `;
   } else {
-    document.getElementById('detailHistory').innerHTML = '';
+    document.getElementById('detailHistory').innerHTML = copiesHtml;
   }
 
-  document.getElementById('detailFoot').innerHTML = item.status === 'Available'
+  // Checkout button targets the first available copy (or item itself for single-copy items)
+  const checkoutId = firstAvail ? firstAvail.id : null;
+  const checkoutApex = firstAvail ? (firstAvail.barcode || firstAvail.apex_id || '') : '';
+  document.getElementById('detailFoot').innerHTML = checkoutId
     ? `<button class="btn btn-secondary" onclick="closeModal('overlayDetail')">Close</button>
-       <button class="btn btn-primary" onclick="closeModal('overlayDetail');openCheckout(${item.id},'${esc(item.title)}')"><i class="bi bi-bookmark-plus"></i> Check Out</button>`
+       <button class="btn btn-primary" onclick="closeModal('overlayDetail');openCheckout(${checkoutId},'${jss(item.title)}','${jss(checkoutApex)}')"><i class="bi bi-bookmark-plus"></i> Check Out</button>`
     : `<button class="btn btn-secondary" onclick="closeModal('overlayDetail')">Close</button>`;
 
   document.getElementById('overlayDetail').classList.add('open');
 }
 
 // ─── Checkout ─────────────────────────────────────────────────────────────────
-function openCheckout(itemId, title) {
+function openCheckout(itemId, title, apexId) {
   pendingCheckoutItemId = itemId;
   document.getElementById('coItemTitle').textContent = title;
+  // Show which specific physical copy is being checked out
+  const apexEl = document.getElementById('coApexIdRow');
+  if (apexEl) {
+    if (apexId) {
+      apexEl.innerHTML = `<i class="bi bi-hexagon" style="color:var(--accent)"></i> Copy APEX ID: <strong style="font-family:monospace;color:var(--accent)">${apexId}</strong>`;
+      apexEl.style.display = '';
+    } else {
+      apexEl.style.display = 'none';
+    }
+  }
   document.getElementById('coName').value = '';
   document.getElementById('coMemberId').value = '';
   document.getElementById('coNotes').value = '';
@@ -709,6 +770,7 @@ async function openArchive(id) {
 document.addEventListener('contextmenu', e => { if (e.target.closest('#view-archives,#overlayArchiveView')) e.preventDefault(); });
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+function jss(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); } // escape for JS onclick strings
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
 function typeIcon(t) { return t==='magazine'?'bi-newspaper':t==='video'?'bi-camera-video':t==='game'?'bi-controller':t==='puzzle'?'bi-puzzle':'bi-book'; }

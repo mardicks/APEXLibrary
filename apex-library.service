@@ -1,0 +1,22 @@
+[Unit]
+Description=APEX Library — Physical Media Checkout System (port 4000)
+After=network.target
+Documentation=APEX physical media library. Admin: http://localhost:4000  Patron: http://localhost:4000/patron
+
+[Service]
+Type=simple
+User=user
+WorkingDirectory=/home/user/.gemini/antigravity/scratch/APEX/APEXLibrary
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+# Stop after 5 failures in 5 minutes
+StartLimitIntervalSec=300
+StartLimitBurst=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=apex-library
+Environment=NODE_ENV=production PORT=4000
+
+[Install]
+WantedBy=multi-user.target

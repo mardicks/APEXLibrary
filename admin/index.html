@@ -105,6 +105,20 @@ tr:hover td{background:var(--card2)}
 .type-video{background:rgba(121,192,255,.12);color:var(--blue);border:1px solid rgba(121,192,255,.2)}
 .type-game{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.2)}
 .type-puzzle{background:rgba(255,140,0,.12);color:#ff9500;border:1px solid rgba(255,140,0,.2)}
+/* ─── Copies Panel ───────────────────────────────────────────── */
+.copies-row td{padding:0!important;border-bottom:none!important}
+.copies-panel{background:var(--bg);border-top:1px solid var(--border);display:none;padding:0}
+.copies-panel.open{display:block}
+.copies-inner{padding:10px 14px 12px 60px}
+.copies-table{width:100%;border-collapse:collapse;font-size:12px}
+.copies-table th{font-size:10px;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:4px 8px;border-bottom:1px solid var(--border)}
+.copies-table td{padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:middle}
+.copies-table tr:last-child td{border-bottom:none}
+.copies-table td.apex{font-family:monospace;color:var(--accent);font-size:11px}
+.expand-btn{background:none;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--muted);font-size:11px;padding:2px 6px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+.expand-btn:hover{border-color:var(--accent);color:var(--accent)}
+.expand-btn.open{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.clickable-row{cursor:pointer}.clickable-row:hover td{background:rgba(255,255,255,.025)}
 /* ─── Empty state ─────────────────────────────────────────────────────────── */
 .empty{text-align:center;padding:48px 20px;color:var(--muted)}
 .empty i{font-size:40px;display:block;margin-bottom:12px;opacity:.4}
@@ -112,11 +126,11 @@ tr:hover td{background:var(--card2)}
 /* ─── Modal ─────────────────────────────────────────────────────────────── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;display:none;place-items:center}
 .overlay.open{display:grid}
-.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);width:min(680px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);width:min(680px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
 .modal-hdr h3{font-size:15px;font-weight:600}
 .modal-body{flex:1;overflow-y:auto;padding:20px}
-.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;box-sizing:border-box;overflow:hidden;min-width:0}
 .close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px;line-height:1;transition:color .15s}
 .close-btn:hover{color:var(--text)}
 /* ─── Form ─────────────────────────────────────────────────────────────── */
@@ -265,11 +279,11 @@ tr:hover td{background:var(--card2)}
               <th style="width:44px"></th>
               <th>Title / Author</th>
               <th>Type</th>
-              <th>ISBN / Barcode</th>
-              <th>Condition</th>
+              <th>APEX ID</th>
+              <th>Copies</th>
               <th>Status</th>
               <th>Added</th>
-              <th style="width:100px"></th>
+              <th style="width:120px"></th>
             </tr></thead>
             <tbody id="catalogTbody"><tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody>
           </table>
@@ -423,15 +437,34 @@ tr:hover td{background:var(--card2)}
       <div class="alert alert-error" id="itemAlert"><i class="bi bi-exclamation-circle"></i><span id="itemAlertMsg"></span></div>
       <div class="alert alert-success" id="itemSuccess"><i class="bi bi-check-circle"></i><span id="itemSuccessMsg"></span></div>
 
-      <!-- ISBN Lookup (books only) -->
+      <!-- Duplicate detection banner — shown when an existing item with same ISBN/title is found -->
+      <div id="dupWarning" style="display:none;background:rgba(210,153,34,.12);border:1px solid rgba(210,153,34,.35);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <i class="bi bi-copy" style="color:var(--orange);font-size:16px;margin-top:1px;flex-shrink:0"></i>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px">This title already exists in the catalog</div>
+            <div id="dupWarningDetail" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" id="btnAddAsCopy" onclick="addCurrentFormAsCopy()">
+                <i class="bi bi-plus-square"></i> Add as Copy
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="dismissDupWarning()">
+                Add as Separate Item Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barcode / ISBN / UPC Lookup (all types) -->
       <div id="isbnLookupSection" class="form-grid cols-1" style="margin-bottom:16px">
         <div class="field">
-          <label>ISBN Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — auto-fills fields from Open Library &amp; Google Books)</span></label>
+          <label id="isbnLookupLabel">Barcode / ISBN Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — auto-fills fields from Open Library &amp; Google Books)</span></label>
           <div class="isbn-row">
-            <input type="text" id="isbnInput" placeholder="Enter ISBN-10 or ISBN-13…" onkeydown="if(event.key==='Enter')lookupISBN()">
+            <input type="text" id="isbnInput" placeholder="Enter ISBN, UPC, or EAN barcode…" onkeydown="if(event.key==='Enter')lookupISBN()">
             <button class="btn btn-secondary" onclick="lookupISBN()" id="isbnBtn"><i class="bi bi-search"></i> Lookup</button>
           </div>
-          <div class="field-hint">Or scan a barcode — scanner will auto-detect and search.</div>
+          <div class="field-hint" id="isbnLookupHint">Scan or type a barcode — works for books, DVDs, Blu-rays, games, puzzles &amp; more.</div>
         </div>
       </div>
 
@@ -488,8 +521,9 @@ tr:hover td{background:var(--card2)}
           <input type="text" id="fISBN" placeholder="ISBN-10 or ISBN-13">
         </div>
         <div class="field">
-          <label>Barcode</label>
-          <input type="text" id="fBarcode" placeholder="Barcode (if any)">
+          <label>APEX Library ID <span style="color:var(--muted2);font-weight:400;text-transform:none">(scan first — auto-advances to lookup)</span></label>
+          <input type="text" id="fBarcode" placeholder="Scan APEX Library barcode…" autocomplete="off"
+            oninput="onBarcodeInput(this)">
         </div>
         <div class="field">
           <label>APEX Inventory # <span style="color:var(--muted2);font-weight:400;text-transform:none">(scan or type APEX barcode)</span></label>
@@ -513,11 +547,28 @@ tr:hover td{background:var(--card2)}
         </div>
       </div>
     </div>
-    <div class="modal-foot">
-      <button class="btn btn-danger btn-sm" id="btnDelete" onclick="deleteItem()" style="margin-right:auto;display:none"><i class="bi bi-trash"></i> Delete</button>
-      <button class="btn btn-secondary" onclick="closeModal('overlayItem')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveItem()" id="btnSave"><i class="bi bi-check-lg"></i> Save Item</button>
+    <div class="modal-foot" style="flex-direction:column;gap:10px;align-items:stretch;overflow:hidden;box-sizing:border-box">
+      <!-- Link-as-copy row: only shown when editing an existing item -->
+      <div id="linkCopyRow" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;box-sizing:border-box;overflow:hidden;min-width:0">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;word-break:break-word;white-space:normal;overflow-wrap:break-word">
+          <i class="bi bi-link-45deg" style="color:var(--accent)"></i>
+          Link as copy of another title
+          <span style="color:var(--muted2);text-transform:none">(merge duplicate entries)</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;min-width:0;overflow:hidden">
+          <select id="linkParentSelect" style="flex:1;min-width:0;max-width:100%;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:6px 8px;font-size:12px;outline:none;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box">
+            <option value="">— Select item to link under —</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="linkAsCopy()" style="flex-shrink:0"><i class="bi bi-link-45deg"></i> Link</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-danger btn-sm" id="btnDelete" onclick="deleteItem()" style="margin-right:auto;display:none"><i class="bi bi-trash"></i> Delete</button>
+        <button class="btn btn-secondary" onclick="closeModal('overlayItem')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveItem()" id="btnSave"><i class="bi bi-check-lg"></i> Save Item</button>
+      </div>
     </div>
+
   </div>
 </div>
 
@@ -541,6 +592,49 @@ tr:hover td{background:var(--card2)}
     </div>
   </div>
 </div>
+
+<!-- ─── Add Copy Modal ─────────────────────────────────────────────────────── -->
+<div class="overlay" id="overlayAddCopy">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-copy" style="color:var(--accent)"></i> Add Copy</h3>
+      <button class="close-btn" onclick="closeModal('overlayAddCopy')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-error" id="addCopyAlert"><i class="bi bi-exclamation-circle"></i><span id="addCopyAlertMsg"></span></div>
+      <div id="addCopyParentInfo" style="background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;font-size:13px">
+        <span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;word-break:break-word;white-space:normal">Adding copy of</span><br>
+        <strong id="addCopyTitle" style="color:var(--text)"></strong>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">All metadata (title, author, ISBN, cover) will be inherited automatically.</div>
+      </div>
+      <div class="form-grid">
+        <div class="field form-col-2">
+          <label>APEX Library ID <span style="color:var(--muted2);font-weight:400;text-transform:none">(scan barcode on this copy)</span></label>
+          <input type="text" id="cpApexId" placeholder="Scan or type APEX Library barcode…" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Condition</label>
+          <select id="cpCondition">
+            <option>Excellent</option><option selected>Good</option><option>Fair</option><option>Poor</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Location <span style="color:var(--muted2);font-weight:400;text-transform:none">(shelf / room)</span></label>
+          <input type="text" id="cpLocation" placeholder="e.g. Shelf A-3">
+        </div>
+        <div class="field form-col-2">
+          <label>Notes <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional)</span></label>
+          <input type="text" id="cpNotes" placeholder="Any notes about this physical copy…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('overlayAddCopy')">Cancel</button>
+      <button class="btn btn-primary" id="addCopyBtn" onclick="submitAddCopy()"><i class="bi bi-plus-lg"></i> Add Copy</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- ─── Enrich Metadata Modal ───────────────────────────────────────────────────────────────── -->
 <div class="overlay" id="overlayEnrich">
@@ -725,29 +819,94 @@ function filterCatalog() {
   const t = document.getElementById('catType').value;
   const s = document.getElementById('catStatus').value;
   renderCatalog(allItems.filter(i => {
-    const match = !q || [i.title, i.author, i.isbn, i.barcode, i.apex_id, i.publisher].some(f => (f||'').toLowerCase().includes(q));
-    return match && (!t || i.type===t) && (!s || i.status===s);
+    const match = !q || [i.title, i.author, i.isbn, i.barcode, i.publisher].some(f => (f||'').toLowerCase().includes(q));
+    const typeOk = !t || i.type === t;
+    const statOk = !s || (s === 'Available' ? (i.avail_count ?? (i.status==='Available'?1:0)) > 0
+                                             : (i.avail_count ?? (i.status==='Available'?1:0)) === 0);
+    return match && typeOk && statOk;
   }));
 }
 function renderCatalog(items) {
   const tb = document.getElementById('catalogTbody');
   if (!items.length) { tb.innerHTML = `<tr><td colspan="8"><div class="empty"><i class="bi bi-collection"></i><p>No items found</p></div></td></tr>`; return; }
-  tb.innerHTML = items.map(i => `
-    <tr>
-      <td>${i.cover_url ? `<img class="cover-thumb" src="${esc(i.cover_url)}" onerror="this.parentNode.innerHTML='<div class=cover-placeholder><i class=bi bi-book></i></div>'">` : i.isbn ? `<div class="cover-placeholder" title="Has ISBN — click ✦ to fetch cover"><i class="bi bi-stars" style="color:var(--orange);opacity:.85"></i></div>` : `<div class="cover-placeholder"><i class="bi ${typeIcon(i.type)}"></i></div>`}</td>
-      <td><div class="item-title">${esc(i.title)}</div><div class="item-sub">${esc(i.author||'—')}</div></td>
+  tb.innerHTML = items.map(i => {
+    const copyCount  = i.copy_count  || 1;
+    const availCount = i.avail_count !== undefined ? i.avail_count : (i.status === 'Available' ? 1 : 0);
+    const copyBadge  = copyCount > 1
+      ? `<span class="badge ${availCount>0?'badge-green':'badge-red'}">${availCount}/${copyCount} avail</span>`
+      : statusBadge(availCount > 0 ? 'Available' : 'Checked Out');
+    const expandBtn  = copyCount > 1
+      ? `<button class="expand-btn" id="expBtn-${i.id}" onclick="toggleCopies(${i.id})" title="Show copies"><i class="bi bi-copy"></i> ${copyCount}</button>`
+      : `<span style="font-size:11px;color:var(--muted2)">1 copy</span>`;
+    // Library APEX ID: prefer barcode (physical sticker ID) then apex_id (inventory #) then isbn
+    const apexLabel = i.barcode || i.apex_id;
+    const idChip = apexLabel
+      ? `<span style="font-family:monospace;font-size:11px;color:var(--accent);background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.25);border-radius:4px;padding:2px 6px">⬡ ${esc(apexLabel)}</span>`
+      : (i.isbn ? `<span style="font-size:11px;color:var(--muted)">${esc(i.isbn)}</span>` : `<span style="color:var(--muted2)">—</span>`);
+    return `
+    <tr id="row-${i.id}" class="clickable-row" onclick="if(!event.target.closest('button'))openItemModal(${i.id})">
+      <td>${i.cover_url
+        ? `<img class="cover-thumb" src="${esc(i.cover_url)}" onerror="this.parentNode.innerHTML='<div class=cover-placeholder><i class=bi bi-book></i></div>'">`
+        : i.isbn
+          ? `<div class="cover-placeholder" title="Has ISBN"><i class="bi bi-stars" style="color:var(--orange);opacity:.85"></i></div>`
+          : `<div class="cover-placeholder"><i class="bi ${typeIcon(i.type)}"></i></div>`}
+      </td>
+      <td>
+        <div class="item-title">${esc(i.title)}</div>
+        <div class="item-sub">${esc(i.author||'—')}</div>
+      </td>
       <td><span class="badge type-${i.type}">${capitalize(i.type)}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${esc(i.apex_id ? '⬡ '+i.apex_id : (i.isbn || i.barcode || '—'))}</td>
-      <td>${condBadge(i.condition)}</td>
-      <td>${statusBadge(i.status)}</td>
+      <td>${idChip}</td>
+      <td>${expandBtn}</td>
+      <td>${copyBadge}</td>
       <td style="font-size:11px;color:var(--muted)">${fmtDate(i.added_date)}</td>
       <td><div style="display:flex;gap:4px">
-        ${i.isbn ? `<button class="btn btn-secondary btn-xs" data-enrich-id="${i.id}" title="Fetch cover & metadata from Open Library" onclick="enrichItem(${i.id})"><i class="bi bi-stars"></i></button>` : ''}
-        <button class="btn btn-secondary btn-xs" title="Full item history" onclick="openItemHistory(${i.id},'${esc(i.title)}')"><i class="bi bi-clock-history"></i></button>
-        <button class="btn btn-secondary btn-xs" onclick="openItemModal(${i.id})"><i class="bi bi-pencil"></i></button>
+        ${i.isbn ? `<button class="btn btn-secondary btn-xs" title="Fetch metadata" onclick="enrichItem(${i.id})"><i class="bi bi-stars"></i></button>` : ''}
+        <button class="btn btn-secondary btn-xs" title="History" onclick="openItemHistory(${i.id},'${jss(i.title)}')"><i class="bi bi-clock-history"></i></button>
+        <button class="btn btn-secondary btn-xs" title="Add copy" onclick="openAddCopyModal(${i.id},'${jss(i.title)}')"><i class="bi bi-plus-square"></i></button>
+        <button class="btn btn-secondary btn-xs" title="Edit" onclick="openItemModal(${i.id})"><i class="bi bi-pencil"></i></button>
       </div></td>
     </tr>
-  `).join('');
+    <tr class="copies-row" id="copiesRow-${i.id}">
+      <td colspan="8"><div class="copies-panel" id="copiesPanel-${i.id}"></div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleCopies(id) {
+  const panel = document.getElementById(`copiesPanel-${id}`);
+  const btn   = document.getElementById(`expBtn-${id}`);
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    btn && btn.classList.remove('open');
+    return;
+  }
+  panel.classList.add('open');
+  btn && btn.classList.add('open');
+  if (panel.dataset.loaded) return;
+  panel.innerHTML = '<div class="copies-inner"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span></div>';
+  const data = await apiFetch(`/api/items/${id}`);
+  const copies = data.copies || [];
+  panel.dataset.loaded = '1';
+  if (!copies.length) { panel.innerHTML = '<div class="copies-inner" style="color:var(--muted);font-size:12px">No copy data.</div>'; return; }
+  panel.innerHTML = `<div class="copies-inner">
+    <table class="copies-table">
+      <thead><tr><th>#</th><th>APEX ID</th><th>Condition</th><th>Location</th><th>Status</th><th></th></tr></thead>
+      <tbody>${copies.map((c,idx) => `
+        <tr>
+          <td style="color:var(--muted2)">${idx+1}</td>
+          <td>${(c.barcode||c.apex_id) ? `<span style="font-family:monospace;font-size:11px;color:var(--accent)">⬡ ${esc(c.barcode||c.apex_id)}</span>` : '<span style="color:var(--muted2)">—</span>'}</td>
+          <td>${condBadge(c.condition)}</td>
+          <td style="font-size:11px;color:var(--muted)">${esc(c.location||'—')}</td>
+          <td>${statusBadge(c.status)}</td>
+          <td><button class="btn btn-secondary btn-xs" onclick="openItemModal(${c.id})" title="Edit copy"><i class="bi bi-pencil"></i></button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="margin-top:8px">
+      <button class="btn btn-secondary btn-sm" onclick="openAddCopyModal(${id},'')"><i class="bi bi-plus-square"></i> Add Another Copy</button>
+    </div>
+  </div>`;
 }
 
 // ─── Active Loans ─────────────────────────────────────────────────────────────
@@ -764,14 +923,17 @@ function renderLoans(loans) {
   const tb = document.getElementById('loansTbody');
   if (!loans.length) { tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="bi bi-inbox"></i><p>No active loans</p></div></td></tr>`; return; }
   tb.innerHTML = loans.map(c => `
-    <tr>
-      <td><div class="item-title">${esc(c.title)}</div><div class="item-sub">${capitalize(c.type)}</div></td>
+    <tr class="clickable-row" onclick="if(!event.target.closest('button'))openItemModal(${c.item_id})">
+      <td>
+        <div class="item-title">${esc(c.title)}</div>
+        <div class="item-sub">${capitalize(c.type)}${(c.barcode||c.apex_id) ? ` &nbsp;&bull;&nbsp; <span style="font-family:monospace;color:var(--accent);font-size:11px">⬡ ${esc(c.barcode||c.apex_id)}</span>` : ''}</div>
+      </td>
       <td>${esc(c.member_name)}</td>
       <td style="font-size:12px;color:var(--muted)">${esc(c.member_id||'—')}</td>
       <td style="font-size:12px;color:var(--muted)">${fmtDate(c.checkout_date)}</td>
       <td>${isOverdue(c.due_date) ? `<span style="color:var(--red)">${fmtDate(c.due_date)}</span>` : fmtDate(c.due_date)}</td>
       <td>${isOverdue(c.due_date) ? `<span class="badge badge-red">Overdue ${daysDue(c.due_date)}d</span>` : `<span class="badge badge-blue">Active</span>`}</td>
-      <td><button class="btn btn-success btn-xs" onclick="openReturn(${c.id},'${esc(c.title)}','${esc(c.member_name)}')"><i class="bi bi-arrow-return-left"></i> Return</button></td>
+      <td><button class="btn btn-success btn-xs" onclick="openReturn(${c.id},'${jss(c.title)}','${jss(c.member_name)}')"><i class="bi bi-arrow-return-left"></i> Return</button></td>
     </tr>
   `).join('');
 }
@@ -782,12 +944,15 @@ async function loadOverdue() {
   const tb = document.getElementById('overdueTbody');
   if (!checkouts.length) { tb.innerHTML = `<tr><td colspan="5"><div class="empty"><i class="bi bi-check-circle" style="color:var(--green)"></i><p>No overdue items!</p></div></td></tr>`; return; }
   tb.innerHTML = checkouts.map(c => `
-    <tr>
-      <td><div class="item-title">${esc(c.title)}</div><div class="item-sub">${capitalize(c.type)}</div></td>
+    <tr class="clickable-row" onclick="if(!event.target.closest('button'))openItemModal(${c.item_id})">
+      <td>
+        <div class="item-title">${esc(c.title)}</div>
+        <div class="item-sub">${capitalize(c.type)}${(c.barcode||c.apex_id) ? ` &nbsp;&bull;&nbsp; <span style="font-family:monospace;color:var(--accent);font-size:11px">⬡ ${esc(c.barcode||c.apex_id)}</span>` : ''}</div>
+      </td>
       <td>${esc(c.member_name)}</td>
       <td style="color:var(--red)">${fmtDate(c.due_date)}</td>
       <td><span class="badge badge-red">${daysDue(c.due_date)} days</span></td>
-      <td><button class="btn btn-success btn-xs" onclick="openReturn(${c.id},'${esc(c.title)}','${esc(c.member_name)}')"><i class="bi bi-arrow-return-left"></i> Return</button></td>
+      <td><button class="btn btn-success btn-xs" onclick="openReturn(${c.id},'${jss(c.title)}','${jss(c.member_name)}')"><i class="bi bi-arrow-return-left"></i> Return</button></td>
     </tr>
   `).join('');
 }
@@ -798,8 +963,11 @@ async function loadHistory() {
   const tb = document.getElementById('histTbody');
   if (!checkouts.length) { tb.innerHTML = `<tr><td colspan="5"><div class="empty"><i class="bi bi-clock-history"></i><p>No checkout history</p></div></td></tr>`; return; }
   tb.innerHTML = checkouts.map(c => `
-    <tr>
-      <td><div class="item-title">${esc(c.title)}</div><div class="item-sub">${capitalize(c.type)}</div></td>
+    <tr class="clickable-row" onclick="openItemModal(${c.item_id})">
+      <td>
+        <div class="item-title">${esc(c.title)}</div>
+        <div class="item-sub">${capitalize(c.type)}${(c.barcode||c.apex_id) ? ` &nbsp;&bull;&nbsp; <span style="font-family:monospace;color:var(--accent);font-size:11px">⬡ ${esc(c.barcode||c.apex_id)}</span>` : ''}</div>
+      </td>
       <td>${esc(c.member_name)}</td>
       <td style="font-size:12px;color:var(--muted)">${fmtDate(c.checkout_date)}</td>
       <td style="font-size:12px;color:var(--muted)">${fmtDate(c.due_date)}</td>
@@ -814,8 +982,10 @@ function openItemModal(id) {
   clearForm();
   document.getElementById('modalItemTitle').textContent = id ? 'Edit Item' : 'Add Item';
   document.getElementById('btnDelete').style.display = id ? '' : 'none';
+  const linkRow = document.getElementById('linkCopyRow');
+  linkRow.style.display = id ? '' : 'none';
   if (id) {
-    apiFetch(`/api/items/${id}`).then(({ item }) => {
+    apiFetch(`/api/items/${id}`).then(({ item, copies }) => {
       if (!item) return;
       document.getElementById('fTitle').value       = item.title       || '';
       document.getElementById('fType').value        = item.type        || 'book';
@@ -830,10 +1000,62 @@ function openItemModal(id) {
       document.getElementById('fCoverUrl').value    = item.cover_url   || '';
       document.getElementById('fLocation').value    = item.location    || '';
       document.getElementById('fNotes').value       = item.notes       || '';
+      onTypeChange(); // update lookup label for loaded type
+      // Populate the "link as copy of" dropdown with all other canonical items
+      const sel = document.getElementById('linkParentSelect');
+      sel.innerHTML = '<option value="">— Select canonical item to link under —</option>';
+      allItems.filter(i => i.id !== id).forEach(i => {
+        const opt = document.createElement('option');
+        opt.value = i.id;
+        opt.textContent = `${i.title}${i.author ? ' — ' + i.author : ''}${i.apex_id ? ' [' + i.apex_id + ']' : ''}`;
+        sel.appendChild(opt);
+      });
+      // Show current copy status
+      const isCopy = item.parent_item_id != null;
+      if (isCopy) {
+        const hintEl = linkRow.querySelector('div:first-child');
+        if (hintEl) hintEl.innerHTML = `<i class="bi bi-link-45deg" style="color:var(--accent)"></i> Currently linked as a copy &mdash; select a different parent or <button class="btn btn-secondary btn-xs" onclick="unlinkCopy()" style="margin-left:6px">Unlink</button>`;
+      }
     });
   }
   document.getElementById('overlayItem').classList.add('open');
+  setTimeout(() => document.getElementById('fBarcode').focus(), 80);
 }
+
+async function linkAsCopy() {
+  if (!editingItemId) return;
+  const parentId = document.getElementById('linkParentSelect').value;
+  if (!parentId) { showAlert('Select an item to link under'); return; }
+  const res = await apiFetch(`/api/items/${editingItemId}/parent`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parent_id: Number(parentId) })
+  });
+  if (res.success) {
+    showAlert('Linked as copy successfully!', true);
+    closeModal('overlayItem');
+    await loadCatalog();
+  } else {
+    showAlert(res.error || 'Failed to link as copy');
+  }
+}
+
+async function unlinkCopy() {
+  if (!editingItemId) return;
+  const res = await apiFetch(`/api/items/${editingItemId}/parent`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parent_id: null })
+  });
+  if (res.success) {
+    showAlert('Unlinked — item is now a standalone canonical record', true);
+    closeModal('overlayItem');
+    await loadCatalog();
+  } else {
+    showAlert(res.error || 'Failed to unlink');
+  }
+}
+
 function clearForm() {
   ['fTitle','fAuthor','fPublisher','fYear','fDescription','fISBN','fBarcode','fApexId','fCoverUrl','fLocation','fNotes','isbnInput'].forEach(id => {
     document.getElementById(id).value = '';
@@ -845,7 +1067,66 @@ function clearForm() {
 function hideAlerts() {
   document.getElementById('itemAlert').classList.remove('show');
   document.getElementById('itemSuccess').classList.remove('show');
+  document.getElementById('dupWarning').style.display = 'none';
+  _dupMatchId = null;
+  _dupDismissed = false;
 }
+
+// ─── Duplicate Detection ─────────────────────────────────────────────────────
+let _dupMatchId   = null;   // canonical item ID that this item would duplicate
+let _dupDismissed = false;  // true after user clicks 'Add as Separate Item Anyway'
+
+async function checkForDuplicates(isbn, title) {
+  if (_dupDismissed) return;
+  const params = new URLSearchParams();
+  if (isbn)  params.set('isbn', isbn);
+  if (title) params.set('title', title);
+  const res = await apiFetch(`/api/items/find-match?${params}`);
+  if (!res.success || !res.matches?.length) return;
+  const match = res.matches[0];
+  _dupMatchId = match.id;
+  const copyWord = match.copy_count === 1 ? '1 copy' : `${match.copy_count} copies`;
+  const availWord = match.avail_count > 0 ? `${match.avail_count} available` : 'all checked out';
+  document.getElementById('dupWarningDetail').innerHTML =
+    `<strong>${esc(match.title)}</strong> is already cataloged with ${copyWord} (${availWord}). ` +
+    `Click <em>Add as Copy</em> to register this physical copy under the existing listing, ` +
+    `or <em>Add as Separate Item Anyway</em> to create a new standalone entry.`;
+  document.getElementById('dupWarning').style.display = '';
+}
+
+function showDupWarning() { document.getElementById('dupWarning').style.display = ''; }
+
+function dismissDupWarning() {
+  _dupDismissed = true;
+  _dupMatchId   = null;
+  document.getElementById('dupWarning').style.display = 'none';
+  // Proceed with normal save now that user has dismissed
+  saveItem();
+}
+
+async function addCurrentFormAsCopy() {
+  if (!_dupMatchId) return;
+  const apex_id   = document.getElementById('fBarcode').value.trim() || document.getElementById('fApexId').value.trim();  // barcode field = APEX Library ID
+  const condition = document.getElementById('fCondition').value;
+  const location  = document.getElementById('fLocation').value.trim();
+  const notes     = document.getElementById('fNotes').value.trim();
+  const btn = document.getElementById('btnAddAsCopy');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>';
+  const res = await apiFetch(`/api/items/${_dupMatchId}/copies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ barcode: apex_id, condition, location, notes })
+  });
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-square"></i> Add as Copy';
+  if (res.success) {
+    toast('Copy added to existing catalog entry!', true);
+    closeModal('overlayItem');
+    loadCatalog();
+  } else {
+    showAlert(res.error || 'Failed to add copy');
+  }
+}
+
 function showAlert(msg, success=false) {
   const el = document.getElementById(success ? 'itemSuccess' : 'itemAlert');
   const span = document.getElementById(success ? 'itemSuccessMsg' : 'itemAlertMsg');
@@ -856,6 +1137,31 @@ function showAlert(msg, success=false) {
 async function saveItem() {
   const title = document.getElementById('fTitle').value.trim();
   if (!title) { showAlert('Title is required'); return; }
+  // If a duplicate was found and not yet dismissed, run duplicate check first
+  if (!editingItemId && !_dupDismissed) {
+    const isbn = document.getElementById('fISBN').value.trim();
+    if (isbn || title) {
+      // Run check — if it finds something it shows the banner and stops here;
+      // dismissDupWarning() will call saveItem() again after user chooses
+      const params = new URLSearchParams();
+      if (isbn)  params.set('isbn', isbn);
+      if (title) params.set('title', title);
+      const res = await apiFetch(`/api/items/find-match?${params}`);
+      if (res.success && res.matches?.length) {
+        const match = res.matches[0];
+        _dupMatchId = match.id;
+        const copyWord  = match.copy_count === 1 ? '1 copy' : `${match.copy_count} copies`;
+        const availWord = match.avail_count > 0 ? `${match.avail_count} available` : 'all checked out';
+        document.getElementById('dupWarningDetail').innerHTML =
+          `<strong>${esc(match.title)}</strong> is already cataloged with ${copyWord} (${availWord}). ` +
+          `Click <em>Add as Copy</em> to register this physical copy under the existing listing, ` +
+          `or <em>Add as Separate Item Anyway</em> to create a new standalone entry.`;
+        document.getElementById('dupWarning').style.display = '';
+        document.getElementById('dupWarning').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;  // Stop — wait for user to choose
+      }
+    }
+  }
   const body = {
     title, type: document.getElementById('fType').value,
     author: document.getElementById('fAuthor').value.trim(),
@@ -894,13 +1200,13 @@ async function deleteItem() {
 // ─── ISBN Lookup ───────────────────────────────────────────────────────────────
 async function lookupISBN() {
   const isbn = document.getElementById('isbnInput').value.trim();
-  if (!isbn) { showAlert('Enter an ISBN to look up'); return; }
+  if (!isbn) { showAlert('Enter a barcode or ISBN to look up'); return; }
   const btn = document.getElementById('isbnBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>';
   hideAlerts();
   const res = await apiFetch(`/api/isbn/${isbn.replace(/[- ]/g,'')}`);
   btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Lookup';
-  if (!res.success) { showAlert(res.error || 'ISBN not found'); return; }
+  if (!res.success) { showAlert(res.error || 'Not found — try a different barcode or enter details manually'); return; }
   const d = res.data;
   if (d.title)       document.getElementById('fTitle').value = d.title;
   if (d.author)      document.getElementById('fAuthor').value = d.author;
@@ -909,8 +1215,19 @@ async function lookupISBN() {
   if (d.description) document.getElementById('fDescription').value = d.description;
   if (d.cover_url)   document.getElementById('fCoverUrl').value = d.cover_url;
   if (d.isbn)        document.getElementById('fISBN').value = d.isbn;
-  // Don't force type; keep whatever user selected
-  showAlert('Fields filled from Open Library & Google Books!', true);
+  // Auto-select item type when the server detected one
+  const typeLabels = { book:'Book', magazine:'Magazine', video:'Video / DVD', game:'Board Game', puzzle:'Puzzle' };
+  let typeNote = '';
+  if (d.detected_type) {
+    document.getElementById('fType').value = d.detected_type;
+    onTypeChange();  // update lookup panel label to match new type
+    typeNote = ` · Type auto-set to <strong>${typeLabels[d.detected_type] || d.detected_type}</strong>`;
+  }
+  showAlert(`Fields filled from barcode lookup!${typeNote}`, true);
+  // Check for duplicates after filling fields (only when adding a new item)
+  if (!editingItemId) {
+    checkForDuplicates(d.isbn || isbn, d.title || '');
+  }
 }
 
 // ─── Modals ─────────────────────────────────────────────────────────────
@@ -921,12 +1238,97 @@ function openModal(id) {
   document.getElementById(id).classList.add('open');
 }
 
-// ─── Type-change handler (show/hide lookup sections) ──────────────────────────
+// ─── Add Copy Modal ───────────────────────────────────────────────────────────
+let _addCopyParentId = null;
+function openAddCopyModal(parentId, title) {
+  _addCopyParentId = parentId;
+  // If title wasn't passed (e.g. from sub-panel), look it up from allItems
+  const item = allItems.find(i => i.id === parentId);
+  const displayTitle = title || (item ? item.title : '');
+  document.getElementById('addCopyTitle').textContent = displayTitle;
+  document.getElementById('cpApexId').value = '';
+  document.getElementById('cpCondition').value = 'Good';
+  document.getElementById('cpLocation').value = item?.location || '';
+  document.getElementById('cpNotes').value = '';
+  document.getElementById('addCopyAlert').classList.remove('show');
+  document.getElementById('overlayAddCopy').classList.add('open');
+  setTimeout(() => document.getElementById('cpApexId').focus(), 150);
+}
+async function submitAddCopy() {
+  if (!_addCopyParentId) return;
+  const barcode   = document.getElementById('cpApexId').value.trim();  // APEX Library sticker
+  const condition = document.getElementById('cpCondition').value;
+  const location  = document.getElementById('cpLocation').value.trim();
+  const notes     = document.getElementById('cpNotes').value.trim();
+  if (!barcode) { showCopyAlert('Scan the APEX Library barcode sticker on this physical copy.'); return; }
+  const btn = document.getElementById('addCopyBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>';
+  const res = await apiFetch(`/api/items/${_addCopyParentId}/copies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ barcode, condition, location, notes })
+  });
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-lg"></i> Add Copy';
+  if (res.success) {
+    closeModal('overlayAddCopy');
+    showToast(`Copy added! (ID: ${apex_id || 'no barcode'})`, true);
+    // Invalidate the copies panel so it reloads fresh
+    const panel = document.getElementById(`copiesPanel-${_addCopyParentId}`);
+    if (panel) { delete panel.dataset.loaded; panel.innerHTML = ''; panel.classList.remove('open'); }
+    const btn2 = document.getElementById(`expBtn-${_addCopyParentId}`);
+    if (btn2) btn2.classList.remove('open');
+    await loadCatalog();
+  } else {
+    document.getElementById('addCopyAlertMsg').textContent = res.error || 'Failed to add copy';
+    document.getElementById('addCopyAlert').classList.add('show');
+  }
+}
+
+// ─── Barcode input auto-advance: after 5+ chars, jump focus to the top lookup field ────
+function onBarcodeInput(el) {
+  if (el.value.length >= 5) {
+    // Move focus to the ISBN/barcode lookup search field at the top — do NOT copy the value
+    document.getElementById('isbnInput').focus();
+  }
+}
+
+// ─── Type-change handler (show/hide and relabel lookup sections) ───────────────
 function onTypeChange() {
   const t = document.getElementById('fType').value;
-  document.getElementById('isbnLookupSection').style.display = t === 'book' ? '' : 'none';
+  // Barcode/ISBN lookup now shows for ALL types
+  document.getElementById('isbnLookupSection').style.display = '';
   document.getElementById('bggLookupSection').style.display  = t === 'game' ? '' : 'none';
   document.getElementById('bggResults').innerHTML = '';
+
+  // Update the lookup label and hint to match the item type
+  const labelEl = document.getElementById('isbnLookupLabel');
+  const hintEl  = document.getElementById('isbnLookupHint');
+  const inputEl = document.getElementById('isbnInput');
+  if (t === 'book') {
+    labelEl.innerHTML = 'ISBN Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — auto-fills fields from Open Library &amp; Google Books)</span>';
+    inputEl.placeholder = 'Enter ISBN-10 or ISBN-13…';
+    hintEl.textContent  = 'Or scan a barcode — scanner will auto-detect and search.';
+  } else if (t === 'magazine') {
+    labelEl.innerHTML = 'ISSN / Barcode Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — looks up via Open Library)</span>';
+    inputEl.placeholder = 'Enter ISSN or UPC barcode…';
+    hintEl.textContent  = 'Scan the magazine barcode or enter an ISSN to auto-fill details.';
+  } else if (t === 'video') {
+    labelEl.innerHTML = 'UPC / EAN Barcode Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — looks up DVD/Blu-ray via Open Library)</span>';
+    inputEl.placeholder = 'Scan or enter UPC / EAN barcode…';
+    hintEl.textContent  = 'Scan the disc barcode to auto-fill title, studio &amp; year from Open Library.';
+  } else if (t === 'game') {
+    labelEl.innerHTML = 'UPC / Barcode Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — or use the BGG search below for richer data)</span>';
+    inputEl.placeholder = 'Scan or enter UPC barcode…';
+    hintEl.textContent  = 'Scan the box barcode, or use the BoardGameGeek search below for full details.';
+  } else if (t === 'puzzle') {
+    labelEl.innerHTML = 'UPC / Barcode Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional — looks up via Open Library / UPC databases)</span>';
+    inputEl.placeholder = 'Scan or enter UPC barcode…';
+    hintEl.textContent  = 'Scan the puzzle box barcode to auto-fill title and publisher if available.';
+  } else {
+    labelEl.innerHTML = 'Barcode / ISBN Lookup <span style="color:var(--muted2);font-weight:400;text-transform:none">(optional)</span>';
+    inputEl.placeholder = 'Scan or enter barcode…';
+    hintEl.textContent  = 'Scan or type a barcode to auto-fill item details.';
+  }
 }
 
 // ─── BGG Search ───────────────────────────────────────────────────────────────
@@ -957,7 +1359,7 @@ async function searchBGG() {
   resultsEl.innerHTML = res.items.map(item => `
     <div style="padding:7px 10px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;margin-bottom:4px;display:flex;align-items:center;gap:10px;transition:border-color .15s"
          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
-         onclick="selectBGGGame('${esc(item.id)}')">
+         onclick="selectBGGGame('${jss(item.id)}')">
       <i class="bi bi-puzzle" style="color:var(--green);font-size:15px;flex-shrink:0"></i>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.name)}</div>
@@ -1034,6 +1436,7 @@ function toast(msg, success=true) {
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+function jss(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
 function typeIcon(t) { return t==='magazine'?'bi-newspaper':t==='video'?'bi-camera-video':t==='game'?'bi-controller':t==='puzzle'?'bi-puzzle':'bi-book'; }

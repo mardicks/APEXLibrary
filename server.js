@@ -158,7 +158,9 @@ async function fetchGoogleBooks(isbn) {
     publisher:   vi.publisher || '',
     year:        (vi.publishedDate || '').split('-')[0],
     description: vi.description || '',
-    cover_url:   cover
+    cover_url:   cover,
+    // Pass raw Google Books categories for type detection
+    _categories: (vi.categories || []).join('|').toLowerCase()
   };
 }
 
@@ -184,24 +186,83 @@ async function fetchOLSearchAPI(isbn) {
   };
 }
 
-// ─── Multi-source ISBN Fetch (4 parallel fetches, OL ISBN also chains to Works API) ───────
+// ─── Source 5: UPCitemdb (catches UPC/EAN barcodes for games, puzzles, DVDs, etc.) ───────────
+async function fetchUPCItemDB(upc) {
+  // Only attempt if the code looks like a UPC-12 or EAN-13 (all digits, 8-14 chars)
+  if (!/^\d{8,14}$/.test(upc)) return null;
+  try {
+    const { status, body } = await httpGet(
+      `https://api.upcitemdb.com/prod/trial/lookup?upc=${upc}`
+    );
+    if (status !== 200) return null;
+    const parsed = JSON.parse(body);
+    const item = parsed.items?.[0];
+    if (!item) return null;
+    const imageUrl = (Array.isArray(item.images) ? item.images[0] : '') || item.image || '';
+    return {
+      title:       item.title || '',
+      author:      item.brand || '',
+      publisher:   item.brand || '',
+      year:        '',
+      description: item.description || '',
+      cover_url:   imageUrl,
+      // Pass raw UPCitemdb category path for type detection (e.g. "Toys & Games > Board Games")
+      _category:   (item.category || '').toLowerCase()
+    };
+  } catch(_) { return null; }
+}
+
+// ─── Type Detection: map category signals + keywords → library item type ─────────────────
+function detectItemType(signals) {
+  // signals: array of lowercase strings (category paths, descriptions, titles)
+  const combined = signals.join(' ');
+
+  // ── Puzzles first — UPCitemdb nests puzzles under "Toys & Games > Puzzles"
+  //    which would otherwise match the broad game patterns below ──────────────
+  if (/\bpuzzle\b/.test(combined)) return 'puzzle';   // title or category contains "puzzle"
+  if (/\bjigsaw\b/.test(combined)) return 'puzzle';
+
+  // Board games ─────────────────────────────────────────────────────────────
+  if (/board game|card game|tabletop|trading card|collectible card|\bccg\b|\btcg\b|\bdice game\b/.test(combined)) return 'game';
+  // UPCitemdb "Toys & Games > ..." categories (excluding puzzle, already handled above)
+  if (/toys.*games|games.*toys|game.*board|game.*card|game.*strategy|game.*family/.test(combined)) return 'game';
+  // Google Books categories
+  if (/games.*activities|board games|game.*design|game.*theory/.test(combined)) return 'game';
+
+  // Video / DVD / Blu-ray
+  if (/\bdvd\b|\bblu.ray\b|\bvhs\b|\bfilm\b|\bmovie\b|\bdocumentary\b|\btelevision\b|\btvshow\b|\bseason\b.*\bepisode\b/.test(combined)) return 'video';
+  if (/movies.*tv|movies.*entertain|dvd.*blu|video.*record/.test(combined)) return 'video';
+  // Google Books printType can indicate it's not really a book
+  if (/performing arts|drama|screenplay|script/.test(combined)) return 'video';
+
+  // Magazines / periodicals
+  if (/\bmagazine\b|\bperiodical\b|\bissue\b.*\bvol\b|\bjournal\b/.test(combined)) return 'magazine';
+
+  // Books — if any book-focused source returned data it's likely a book
+  if (/\bfiction\b|\bnovel\b|\bbiography\b|\bnonfiction\b|\bpoetry\b|\bchildren\b.*book|\bself.help\b|\bcooking\b|\bhistory\b|\bscience\b|\bphilosophy\b/.test(combined)) return 'book';
+
+  return null;  // unknown — let existing form selection stand
+}
+
+// ─── Multi-source Barcode/ISBN Fetch (5 parallel sources) ───────────────────────
 async function fetchISBNData(isbn) {
   const clean = isbn.replace(/[- ]/g, '');
   if (!clean) return null;
 
-  // Sources 1, 3, 4 run in parallel; Source 2 also internally chains to Works API
-  const [olBooks, olJSON, googleBooks, olSearch] = await Promise.allSettled([
+  // Sources 1–4 run in parallel (book-focused). Source 5 handles UPC/EAN (games, puzzles, DVDs)
+  const [olBooks, olJSON, googleBooks, olSearch, upcDB] = await Promise.allSettled([
     fetchOLBooksAPI(clean),    // OL Books API (metadata + cover)
-    fetchOLIsbnJSON(clean),    // OL ISBN JSON  → Works API (reliable covers + descriptions)
+    fetchOLIsbnJSON(clean),    // OL ISBN JSON → Works API (reliable covers + descriptions)
     fetchGoogleBooks(clean),   // Google Books (descriptions + high-res cover via volumeId)
-    fetchOLSearchAPI(clean)    // OL Search API (finds books other endpoints miss)
+    fetchOLSearchAPI(clean),   // OL Search API (finds books other endpoints miss)
+    fetchUPCItemDB(clean)      // UPCitemdb   (games, puzzles, DVDs, general merchandise)
   ]);
 
   const result = { title:'', author:'', publisher:'', year:'', description:'', cover_url:'', isbn:clean };
   const fill   = (field, src) => { if (src?.[field] && !result[field]) result[field] = src[field]; };
 
-  // Priority: OL Books > OL ISBN+Works > Google Books > OL Search
-  for (const settled of [olBooks, olJSON, googleBooks, olSearch]) {
+  // Priority: OL Books > OL ISBN+Works > Google Books > OL Search > UPCitemdb
+  for (const settled of [olBooks, olJSON, googleBooks, olSearch, upcDB]) {
     if (settled.status === 'fulfilled' && settled.value) {
       const src = settled.value;
       fill('title', src); fill('author', src); fill('publisher', src);
@@ -210,6 +271,25 @@ async function fetchISBNData(isbn) {
   }
 
   if (!result.title && !result.description && !result.cover_url) return null;
+
+  // ── Type Detection ── collect all category/keyword signals from every source
+  const typeSignals = [];
+  // UPCitemdb category is the strongest signal (most specific)
+  if (upcDB.status === 'fulfilled' && upcDB.value?._category)     typeSignals.unshift(upcDB.value._category);
+  // Google Books categories
+  if (googleBooks.status === 'fulfilled' && googleBooks.value?._categories) typeSignals.push(googleBooks.value._categories);
+  // Fall back to title + description keywords
+  typeSignals.push((result.title + ' ' + result.description).toLowerCase());
+
+  result.detected_type = detectItemType(typeSignals);
+
+  // If every book-focused source found nothing but UPCitemdb did → likely NOT a book
+  // If at least one book source returned data and no other type was detected → book
+  const bookSourceHit = [olBooks, olJSON, googleBooks, olSearch].some(
+    s => s.status === 'fulfilled' && s.value?.title
+  );
+  if (!result.detected_type && bookSourceHit) result.detected_type = 'book';
+
   return result;
 }
 
@@ -289,7 +369,15 @@ function mountAPI(app) {
         ? q.search.all(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`)
         : q.getAll.all();
       if (type)   items = items.filter(i => i.type === type);
-      if (status) items = items.filter(i => i.status === status);
+      // Annotate each canonical item with copy_count and avail_count
+      items = items.map(i => ({
+        ...i,
+        copy_count:  q.copyCount.get(i.id).cnt,
+        avail_count: q.availCount.get(i.id).cnt
+      }));
+      if (status) items = items.filter(i =>
+        status === 'Available' ? i.avail_count > 0 : i.avail_count === 0
+      );
       res.json({ success: true, items });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
@@ -312,15 +400,87 @@ function mountAPI(app) {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
+  // Duplicate detection — finds canonical items matching by ISBN or title
+  app.get('/api/items/find-match', (req, res) => {
+    try {
+      const { isbn, title } = req.query;
+      const matches = [];
+      // Exact ISBN match (strongest signal)
+      if (isbn) {
+        const byIsbn = db.prepare(
+          `SELECT * FROM items WHERE parent_item_id IS NULL AND isbn = ? AND isbn != '' LIMIT 5`
+        ).all(isbn.trim());
+        byIsbn.forEach(i => { if (!matches.find(m => m.id === i.id)) matches.push(i); });
+      }
+      // Case-insensitive title match (fallback for items without ISBNs)
+      if (title && matches.length === 0) {
+        const byTitle = db.prepare(
+          `SELECT * FROM items WHERE parent_item_id IS NULL AND LOWER(title) = LOWER(?) LIMIT 5`
+        ).all(title.trim());
+        byTitle.forEach(i => { if (!matches.find(m => m.id === i.id)) matches.push(i); });
+      }
+      // Annotate with copy counts
+      const annotated = matches.map(i => ({
+        ...i,
+        copy_count:  q.copyCount.get(i.id).cnt,
+        avail_count: q.availCount.get(i.id).cnt
+      }));
+      res.json({ success: true, matches: annotated });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+
+
   app.get('/api/items/:id', (req, res) => {
     try {
       const item = q.getById.get(req.params.id);
       if (!item) return res.status(404).json({ success: false, error: 'Item not found' });
+      // Resolve to canonical if this is a copy
+      const canonId = item.parent_item_id || item.id;
+      const canon   = item.parent_item_id ? q.getById.get(canonId) : item;
+      const copies  = q.allCopies.all(canonId);
       const history = db.prepare(`
-        SELECT * FROM checkouts WHERE item_id=? ORDER BY checkout_date DESC
-      `).all(req.params.id);
-      res.json({ success: true, item, history });
+        SELECT c.*, i.apex_id, i.condition, i.location FROM checkouts c
+        JOIN items i ON c.item_id = i.id
+        WHERE i.id = ?1 OR i.parent_item_id = ?1
+        ORDER BY c.checkout_date DESC
+      `).all(canonId);
+      res.json({ success: true, item: canon, copies, history });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // Add a copy of an existing item
+  app.post('/api/items/:id/copies', (req, res) => {
+    try {
+      const parent = q.getById.get(req.params.id);
+      if (!parent) return res.status(404).json({ success: false, error: 'Item not found' });
+      // Copies must be linked to the canonical (root) record
+      const canonId = parent.parent_item_id || parent.id;
+      const canon   = q.getById.get(canonId);
+      const body = {
+        parent_item_id: canonId,
+        // Shared catalog metadata from canonical
+        title:       canon.title,
+        type:        canon.type,
+        author:      canon.author,
+        publisher:   canon.publisher,
+        year:        canon.year,
+        description: canon.description,
+        isbn:        canon.isbn,
+        cover_url:   canon.cover_url,
+        // Copy-specific physical identifiers — MUST be unique per copy, from the request
+        barcode:   (req.body.barcode   || '').trim(),   // APEX Library sticker barcode
+        apex_id:   (req.body.apex_id   || '').trim(),   // secondary inventory number if used
+        condition: (req.body.condition || 'Good').trim(),
+        location:  (req.body.location  || canon.location || '').trim(),
+        notes:     (req.body.notes     || '').trim(),
+      };
+      if (!body.barcode && !body.apex_id) {
+        return res.status(400).json({ success: false, error: 'Each copy must have a unique APEX Library ID barcode.' });
+      }
+      const r = q.insertCopy.run(body);
+      res.json({ success: true, id: r.lastInsertRowid });
+    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
   });
 
   app.post('/api/items', (req, res) => {
@@ -335,20 +495,57 @@ function mountAPI(app) {
     try {
       const body = sanitizeItem(req.body);
       q.update.run({ ...body, id: req.params.id });
+      // Cascade shared metadata fields to all copies
+      q.syncCopies.run({ ...body, id: req.params.id });
       res.json({ success: true });
     } catch (e) { res.status(400).json({ success: false, error: e.message }); }
   });
 
   app.delete('/api/items/:id', (req, res) => {
     try {
-      const active = q.activeByItem.get(req.params.id);
-      if (active) return res.status(400).json({ success: false, error: 'Item is currently checked out' });
+      // Check for active checkouts on this item OR any of its copies
+      const copies = q.allCopies.all(req.params.id);
+      const hasActive = copies.some(c => q.activeByItem.get(c.id));
+      if (hasActive) return res.status(400).json({ success: false, error: 'One or more copies are currently checked out' });
+      q.deleteCopies.run(req.params.id);
       q.delete.run(req.params.id);
       res.json({ success: true });
     } catch (e) { res.status(400).json({ success: false, error: e.message }); }
   });
+  // Link an existing item as a copy of another (set parent_item_id)
+  // Also syncs shared metadata from the new parent down to this item
+  app.patch('/api/items/:id/parent', (req, res) => {
+    try {
+      const { parent_id } = req.body;
+      const child  = q.getById.get(req.params.id);
+      if (!child) return res.status(404).json({ success: false, error: 'Item not found' });
+      if (parent_id === null || parent_id === undefined) {
+        // Unlink — make canonical
+        q.clearParent.run(child.id);
+        return res.json({ success: true });
+      }
+      const parent = q.getById.get(parent_id);
+      if (!parent) return res.status(404).json({ success: false, error: 'Parent item not found' });
+      // Resolve to root canonical if parent is itself a copy
+      const canonId = parent.parent_item_id || parent.id;
+      if (canonId === child.id) return res.status(400).json({ success: false, error: 'Cannot create a circular reference' });
+      q.setParent.run(canonId, child.id);
+      // Sync metadata from canonical
+      const canon = q.getById.get(canonId);
+      q.update.run({
+        id: child.id,
+        title: canon.title, type: canon.type, author: canon.author,
+        publisher: canon.publisher, year: canon.year, description: canon.description,
+        isbn: canon.isbn, barcode: canon.barcode, cover_url: canon.cover_url,
+        // Preserve copy-specific fields
+        apex_id: child.apex_id, condition: child.condition,
+        location: child.location, notes: child.notes
+      });
+      res.json({ success: true, canon_id: canonId });
+    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+  });
 
-  // --- Enrich single item from Open Library ---
+
   app.post('/api/items/:id/enrich', async (req, res) => {
     try {
       const item = q.getById.get(req.params.id);
